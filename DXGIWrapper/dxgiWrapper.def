@@ -1,0 +1,8 @@
+LIBRARY dxgi.dll
+
+HEAPSIZE 4096
+
+EXPORTS
+	CreateDXGIFactory
+	CreateDXGIFactory1
+	CreateDXGIFactory2

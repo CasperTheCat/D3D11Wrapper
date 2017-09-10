@@ -47,6 +47,7 @@ bool D3D11Wrapper::LoadDLL()
 
 	this->hD3D = hD3D;
 	this->bIsDllValid = true;
+	Event << LOG("Loaded DLL") << std::endl;
 	return true;
 }
 
