@@ -34,8 +34,3 @@ public:
 	void setDevice(ID3D11Device *dev);
 	void setSwapChain(IDXGISwapChain* swapchain);
 };
-
-class D3D11CustomDevice : public ID3D11Device
-{
-	
-};

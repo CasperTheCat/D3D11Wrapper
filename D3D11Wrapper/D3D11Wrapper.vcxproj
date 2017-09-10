@@ -168,12 +168,16 @@
     <Text Include="ReadMe.txt" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="d3d11Device.h" />
+    <ClInclude Include="d3d11DeviceContext.h" />
     <ClInclude Include="d3d11Wrapper.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="targetver.h" />
     <ClInclude Include="utils.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="d3d11Device.cpp" />
+    <ClCompile Include="d3d11DeviceContext.cpp" />
     <ClCompile Include="d3d11Functions.cpp" />
     <ClCompile Include="d3d11Wrapper.cpp" />
     <ClCompile Include="stdafx.cpp" />
