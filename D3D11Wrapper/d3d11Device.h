@@ -15,7 +15,7 @@ protected:
 
 public:
 	D3D11CustomDevice(ID3D11Device *dev, ID3D11Device ***ret);
-
+        D3D11CustomDevice(ID3D11Device *dev);
 	//virtual HRESULT STDMETHODCALLTYPE CreateBuffer(
 	//	/* [annotation] */
 	//	_In_  const D3D11_BUFFER_DESC *pDesc,

@@ -6,6 +6,11 @@ D3D11CustomContext::D3D11CustomContext(ID3D11DeviceContext* devCon, ID3D11Device
 	*ret = &m_devContext;
 }
 
+D3D11CustomContext::D3D11CustomContext(ID3D11DeviceContext* devCon)
+{
+	m_devContext = devCon;
+}
+
 void D3D11CustomContext::VSSetConstantBuffers(UINT StartSlot, UINT NumBuffers, ID3D11Buffer* const* ppConstantBuffers)
 {
 	m_devContext->VSSetConstantBuffers(StartSlot, NumBuffers, ppConstantBuffers);

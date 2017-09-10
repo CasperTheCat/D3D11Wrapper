@@ -14,6 +14,7 @@ protected:
 
 public:
 	D3D11CustomContext(ID3D11DeviceContext *dev, ID3D11DeviceContext ***ret);
+	D3D11CustomContext(ID3D11DeviceContext *dev);
 
 
 	void STDMETHODCALLTYPE VSSetConstantBuffers(

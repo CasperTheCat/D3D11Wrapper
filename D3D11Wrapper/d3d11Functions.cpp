@@ -59,6 +59,12 @@ HRESULT WINAPI D3D11CreateDevice(
 		d3dw->Event << LOGWAR("Failed to get device from D3D11") << std::endl;
 	}
 
+        ID3D11Device *temp = new D3D11CustomDevice(*ppDevice);
+        ppDevice = &temp;
+
+        ID3D11DeviceContext *tempCtx = new D3D11CustomContext(*ppImmediateContext);
+        ppImmediateContext = &tempCtx;
+
 	return out;
 }
 
