@@ -13,7 +13,7 @@ D3D11Wrapper::D3D11Wrapper(HMODULE _hD3D)
 D3D11Wrapper::D3D11Wrapper()
 	: hD3D(nullptr), bIsDllValid(false), m_device(nullptr), m_swapchain(nullptr)
 {
-	Event.open("d3d.txt");
+	Event.open("D3D11.log");
 	Event << LOG("Initialising") << std::endl;
 
 	AllocConsole();

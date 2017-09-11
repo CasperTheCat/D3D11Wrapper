@@ -114,7 +114,7 @@ public:
 		/* [annotation] */
 		_COM_Outptr_opt_  ID3D11GeometryShader **ppGeometryShader) override;
 
-	virtual HRESULT STDMETHODCALLTYPE CreateGeometryShaderWithStreamOutput(
+	HRESULT STDMETHODCALLTYPE CreateGeometryShaderWithStreamOutput(
 		/* [annotation] */
 		_In_reads_(BytecodeLength)  const void *pShaderBytecode,
 		/* [annotation] */
@@ -132,9 +132,9 @@ public:
 		/* [annotation] */
 		_In_opt_  ID3D11ClassLinkage *pClassLinkage,
 		/* [annotation] */
-		_COM_Outptr_opt_  ID3D11GeometryShader **ppGeometryShader) = 0;
+		_COM_Outptr_opt_  ID3D11GeometryShader **ppGeometryShader) override;
 
-	virtual HRESULT STDMETHODCALLTYPE CreatePixelShader(
+	HRESULT STDMETHODCALLTYPE CreatePixelShader(
 		/* [annotation] */
 		_In_reads_(BytecodeLength)  const void *pShaderBytecode,
 		/* [annotation] */
@@ -142,9 +142,9 @@ public:
 		/* [annotation] */
 		_In_opt_  ID3D11ClassLinkage *pClassLinkage,
 		/* [annotation] */
-		_COM_Outptr_opt_  ID3D11PixelShader **ppPixelShader) = 0;
+		_COM_Outptr_opt_  ID3D11PixelShader **ppPixelShader) override;
 
-	virtual HRESULT STDMETHODCALLTYPE CreateHullShader(
+	HRESULT STDMETHODCALLTYPE CreateHullShader(
 		/* [annotation] */
 		_In_reads_(BytecodeLength)  const void *pShaderBytecode,
 		/* [annotation] */
@@ -152,9 +152,9 @@ public:
 		/* [annotation] */
 		_In_opt_  ID3D11ClassLinkage *pClassLinkage,
 		/* [annotation] */
-		_COM_Outptr_opt_  ID3D11HullShader **ppHullShader) = 0;
+		_COM_Outptr_opt_  ID3D11HullShader **ppHullShader) override;
 
-	virtual HRESULT STDMETHODCALLTYPE CreateDomainShader(
+	HRESULT STDMETHODCALLTYPE CreateDomainShader(
 		/* [annotation] */
 		_In_reads_(BytecodeLength)  const void *pShaderBytecode,
 		/* [annotation] */
@@ -162,9 +162,9 @@ public:
 		/* [annotation] */
 		_In_opt_  ID3D11ClassLinkage *pClassLinkage,
 		/* [annotation] */
-		_COM_Outptr_opt_  ID3D11DomainShader **ppDomainShader) = 0;
+		_COM_Outptr_opt_  ID3D11DomainShader **ppDomainShader) override;
 
-	virtual HRESULT STDMETHODCALLTYPE CreateComputeShader(
+	HRESULT STDMETHODCALLTYPE CreateComputeShader(
 		/* [annotation] */
 		_In_reads_(BytecodeLength)  const void *pShaderBytecode,
 		/* [annotation] */
@@ -172,86 +172,86 @@ public:
 		/* [annotation] */
 		_In_opt_  ID3D11ClassLinkage *pClassLinkage,
 		/* [annotation] */
-		_COM_Outptr_opt_  ID3D11ComputeShader **ppComputeShader) = 0;
+		_COM_Outptr_opt_  ID3D11ComputeShader **ppComputeShader) override;
 
-	virtual HRESULT STDMETHODCALLTYPE CreateClassLinkage(
+	HRESULT STDMETHODCALLTYPE CreateClassLinkage(
 		/* [annotation] */
-		_COM_Outptr_  ID3D11ClassLinkage **ppLinkage) = 0;
+		_COM_Outptr_  ID3D11ClassLinkage **ppLinkage) override;
 
-	virtual HRESULT STDMETHODCALLTYPE CreateBlendState(
+	HRESULT STDMETHODCALLTYPE CreateBlendState(
 		/* [annotation] */
 		_In_  const D3D11_BLEND_DESC *pBlendStateDesc,
 		/* [annotation] */
-		_COM_Outptr_opt_  ID3D11BlendState **ppBlendState) = 0;
+		_COM_Outptr_opt_  ID3D11BlendState **ppBlendState) override;
 
-	virtual HRESULT STDMETHODCALLTYPE CreateDepthStencilState(
+	HRESULT STDMETHODCALLTYPE CreateDepthStencilState(
 		/* [annotation] */
 		_In_  const D3D11_DEPTH_STENCIL_DESC *pDepthStencilDesc,
 		/* [annotation] */
-		_COM_Outptr_opt_  ID3D11DepthStencilState **ppDepthStencilState) = 0;
+		_COM_Outptr_opt_  ID3D11DepthStencilState **ppDepthStencilState) override;
 
-	virtual HRESULT STDMETHODCALLTYPE CreateRasterizerState(
+	HRESULT STDMETHODCALLTYPE CreateRasterizerState(
 		/* [annotation] */
 		_In_  const D3D11_RASTERIZER_DESC *pRasterizerDesc,
 		/* [annotation] */
-		_COM_Outptr_opt_  ID3D11RasterizerState **ppRasterizerState) = 0;
+		_COM_Outptr_opt_  ID3D11RasterizerState **ppRasterizerState) override;
 
-	virtual HRESULT STDMETHODCALLTYPE CreateSamplerState(
+	HRESULT STDMETHODCALLTYPE CreateSamplerState(
 		/* [annotation] */
 		_In_  const D3D11_SAMPLER_DESC *pSamplerDesc,
 		/* [annotation] */
-		_COM_Outptr_opt_  ID3D11SamplerState **ppSamplerState) = 0;
+		_COM_Outptr_opt_  ID3D11SamplerState **ppSamplerState) override;
 
-	virtual HRESULT STDMETHODCALLTYPE CreateQuery(
+	HRESULT STDMETHODCALLTYPE CreateQuery(
 		/* [annotation] */
 		_In_  const D3D11_QUERY_DESC *pQueryDesc,
 		/* [annotation] */
-		_COM_Outptr_opt_  ID3D11Query **ppQuery) = 0;
+		_COM_Outptr_opt_  ID3D11Query **ppQuery) override;
 
-	virtual HRESULT STDMETHODCALLTYPE CreatePredicate(
+	HRESULT STDMETHODCALLTYPE CreatePredicate(
 		/* [annotation] */
 		_In_  const D3D11_QUERY_DESC *pPredicateDesc,
 		/* [annotation] */
-		_COM_Outptr_opt_  ID3D11Predicate **ppPredicate) = 0;
+		_COM_Outptr_opt_  ID3D11Predicate **ppPredicate) override;
 
-	virtual HRESULT STDMETHODCALLTYPE CreateCounter(
+	HRESULT STDMETHODCALLTYPE CreateCounter(
 		/* [annotation] */
 		_In_  const D3D11_COUNTER_DESC *pCounterDesc,
 		/* [annotation] */
-		_COM_Outptr_opt_  ID3D11Counter **ppCounter) = 0;
+		_COM_Outptr_opt_  ID3D11Counter **ppCounter) override;
 
-	virtual HRESULT STDMETHODCALLTYPE CreateDeferredContext(
+	HRESULT STDMETHODCALLTYPE CreateDeferredContext(
 		UINT ContextFlags,
 		/* [annotation] */
-		_COM_Outptr_opt_  ID3D11DeviceContext **ppDeferredContext) = 0;
+		_COM_Outptr_opt_  ID3D11DeviceContext **ppDeferredContext) override;
 
-	virtual HRESULT STDMETHODCALLTYPE OpenSharedResource(
+	HRESULT STDMETHODCALLTYPE OpenSharedResource(
 		/* [annotation] */
 		_In_  HANDLE hResource,
 		/* [annotation] */
 		_In_  REFIID ReturnedInterface,
 		/* [annotation] */
-		_COM_Outptr_opt_  void **ppResource) = 0;
+		_COM_Outptr_opt_  void **ppResource) override;
 
-	virtual HRESULT STDMETHODCALLTYPE CheckFormatSupport(
+	HRESULT STDMETHODCALLTYPE CheckFormatSupport(
 		/* [annotation] */
 		_In_  DXGI_FORMAT Format,
 		/* [annotation] */
-		_Out_  UINT *pFormatSupport) = 0;
+		_Out_  UINT *pFormatSupport) override;
 
-	virtual HRESULT STDMETHODCALLTYPE CheckMultisampleQualityLevels(
+	HRESULT STDMETHODCALLTYPE CheckMultisampleQualityLevels(
 		/* [annotation] */
 		_In_  DXGI_FORMAT Format,
 		/* [annotation] */
 		_In_  UINT SampleCount,
 		/* [annotation] */
-		_Out_  UINT *pNumQualityLevels) = 0;
+		_Out_  UINT *pNumQualityLevels) override;
 
-	virtual void STDMETHODCALLTYPE CheckCounterInfo(
+	void STDMETHODCALLTYPE CheckCounterInfo(
 		/* [annotation] */
-		_Out_  D3D11_COUNTER_INFO *pCounterInfo) = 0;
+		_Out_  D3D11_COUNTER_INFO *pCounterInfo) override;
 
-	virtual HRESULT STDMETHODCALLTYPE CheckCounter(
+	HRESULT STDMETHODCALLTYPE CheckCounter(
 		/* [annotation] */
 		_In_  const D3D11_COUNTER_DESC *pDesc,
 		/* [annotation] */
@@ -269,49 +269,61 @@ public:
 		/* [annotation] */
 		_Out_writes_opt_(*pDescriptionLength)  LPSTR szDescription,
 		/* [annotation] */
-		_Inout_opt_  UINT *pDescriptionLength) = 0;
+		_Inout_opt_  UINT *pDescriptionLength) override;
 
-	virtual HRESULT STDMETHODCALLTYPE CheckFeatureSupport(
+	HRESULT STDMETHODCALLTYPE CheckFeatureSupport(
 		D3D11_FEATURE Feature,
 		/* [annotation] */
 		_Out_writes_bytes_(FeatureSupportDataSize)  void *pFeatureSupportData,
-		UINT FeatureSupportDataSize) = 0;
+		UINT FeatureSupportDataSize) override;
 
-	virtual HRESULT STDMETHODCALLTYPE GetPrivateData(
+	HRESULT STDMETHODCALLTYPE GetPrivateData(
 		/* [annotation] */
 		_In_  REFGUID guid,
 		/* [annotation] */
 		_Inout_  UINT *pDataSize,
 		/* [annotation] */
-		_Out_writes_bytes_opt_(*pDataSize)  void *pData) = 0;
+		_Out_writes_bytes_opt_(*pDataSize)  void *pData) override;
 
-	virtual HRESULT STDMETHODCALLTYPE SetPrivateData(
+	HRESULT STDMETHODCALLTYPE SetPrivateData(
 		/* [annotation] */
 		_In_  REFGUID guid,
 		/* [annotation] */
 		_In_  UINT DataSize,
 		/* [annotation] */
-		_In_reads_bytes_opt_(DataSize)  const void *pData) = 0;
+		_In_reads_bytes_opt_(DataSize)  const void *pData) override;
 
-	virtual HRESULT STDMETHODCALLTYPE SetPrivateDataInterface(
+	HRESULT STDMETHODCALLTYPE SetPrivateDataInterface(
 		/* [annotation] */
 		_In_  REFGUID guid,
 		/* [annotation] */
-		_In_opt_  const IUnknown *pData) = 0;
+		_In_opt_  const IUnknown *pData) override;
 
-	virtual D3D_FEATURE_LEVEL STDMETHODCALLTYPE GetFeatureLevel(void) = 0;
+	D3D_FEATURE_LEVEL STDMETHODCALLTYPE GetFeatureLevel(void) override;
 
-	virtual UINT STDMETHODCALLTYPE GetCreationFlags(void) = 0;
+	UINT STDMETHODCALLTYPE GetCreationFlags(void) override;
 
-	virtual HRESULT STDMETHODCALLTYPE GetDeviceRemovedReason(void) = 0;
+	HRESULT STDMETHODCALLTYPE GetDeviceRemovedReason(void) override;
 
-	virtual void STDMETHODCALLTYPE GetImmediateContext(
+	void STDMETHODCALLTYPE GetImmediateContext(
 		/* [annotation] */
-		_Outptr_  ID3D11DeviceContext **ppImmediateContext) = 0;
+		_Outptr_  ID3D11DeviceContext **ppImmediateContext) override;
 
-	virtual HRESULT STDMETHODCALLTYPE SetExceptionMode(
-		UINT RaiseFlags) = 0;
+	HRESULT STDMETHODCALLTYPE SetExceptionMode(
+		UINT RaiseFlags) override;
 
-	virtual UINT STDMETHODCALLTYPE GetExceptionMode(void) = 0;
+	UINT STDMETHODCALLTYPE GetExceptionMode(void) override;
+
+
+	// Unknown
+
+	HRESULT STDMETHODCALLTYPE QueryInterface(
+		/* [in] */ REFIID riid,
+		/* [iid_is][out] */ _COM_Outptr_ void __RPC_FAR *__RPC_FAR *ppvObject) override;
+
+	ULONG STDMETHODCALLTYPE AddRef(void) override;
+
+	ULONG STDMETHODCALLTYPE Release(void) override;
+
 
 };
