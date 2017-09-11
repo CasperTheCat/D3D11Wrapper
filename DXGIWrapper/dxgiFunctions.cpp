@@ -53,7 +53,7 @@ HRESULT WINAPI CreateDXGIFactory2(REFIID riid, _COM_Outptr_  void **ppFactory)
 	
 	dxdw->Event << LOG("CreateDXGIFactory2 intercepted") << std::endl;
 	MessageBox(NULL, L"FactoryCreate2", L"D3D9Wrapper", MB_OK);
-	DXGIFAC pCreateFactory = (DXGIFAC)GetProcAddress(dxdw->getDLL(), "CreateDXGIFactory1");
+	DXGIFAC pCreateFactory = (DXGIFAC)GetProcAddress(dxdw->getDLL(), "CreateDXGIFactory2");
 	if (!pCreateFactory)
 	{
 		//g_Globals.ErrorFile() << "coud not find Direct3DCreate9 in d3d9.dll\n";

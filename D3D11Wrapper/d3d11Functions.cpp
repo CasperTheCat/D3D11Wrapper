@@ -47,23 +47,27 @@ HRESULT WINAPI D3D11CreateDevice(
 	//*tempCtx = new D3D11CustomContext(*ppImmediateContext, &ppImmediateContext);
 	//*ppImmediateContext = *tempCtx;
 	//delete tempCtx;
+
 	d3dw->Event << LOG("Attempting Wrapped Device Creation") << std::endl;
 	HRESULT out = createDev(pAdapter, DriverType, Software, Flags, pFeatureLevels, FeatureLevels, SDKVersion, ppDevice, pFeatureLevel, ppImmediateContext);
 	if (ppDevice != nullptr)
 	{
 		d3dw->Event << LOG("Device Created") << std::endl;
 		d3dw->setDevice(*ppDevice);
+
+		ID3D11DeviceContext *tempCtx = new D3D11CustomContext(*ppImmediateContext);
+		*ppImmediateContext = tempCtx;
+
+		ID3D11Device *temp = new D3D11CustomDevice(*ppDevice);
+		*ppDevice = temp;
 	} 
 	else
 	{
 		d3dw->Event << LOGWAR("Failed to get device from D3D11") << std::endl;
 	}
 
-        ID3D11Device *temp = new D3D11CustomDevice(*ppDevice);
-        ppDevice = &temp;
 
-        ID3D11DeviceContext *tempCtx = new D3D11CustomContext(*ppImmediateContext);
-        ppImmediateContext = &tempCtx;
+
 
 	return out;
 }

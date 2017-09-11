@@ -1,8 +1,7 @@
 #include "stdafx.h"
 #include "d3d11Wrapper.h"
 #include "utils.h"
-
-
+#include <iostream>
 
 
 D3D11Wrapper::D3D11Wrapper(HMODULE _hD3D)
@@ -16,6 +15,10 @@ D3D11Wrapper::D3D11Wrapper()
 {
 	Event.open("d3d.txt");
 	Event << LOG("Initialising") << std::endl;
+
+	AllocConsole();
+	freopen_s((FILE**)stdout, "CONOUT$", "w", stdout);
+	std::cout << "DLL initialised" << std::endl;
 }
 
 D3D11Wrapper::~D3D11Wrapper()
