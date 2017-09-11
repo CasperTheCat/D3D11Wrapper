@@ -1,8 +1,7 @@
 #include "stdafx.h"
 #include "d3d11Wrapper.h"
 #include "utils.h"
-
-
+#include <iostream>
 
 
 D3D11Wrapper::D3D11Wrapper(HMODULE _hD3D)
@@ -14,8 +13,12 @@ D3D11Wrapper::D3D11Wrapper(HMODULE _hD3D)
 D3D11Wrapper::D3D11Wrapper()
 	: hD3D(nullptr), bIsDllValid(false), m_device(nullptr), m_swapchain(nullptr)
 {
-	Event.open("d3d.txt");
+	Event.open("D3D11.log");
 	Event << LOG("Initialising") << std::endl;
+
+	AllocConsole();
+	freopen_s((FILE**)stdout, "CONOUT$", "w", stdout);
+	std::cout << "DLL initialised" << std::endl;
 }
 
 D3D11Wrapper::~D3D11Wrapper()
@@ -47,6 +50,7 @@ bool D3D11Wrapper::LoadDLL()
 
 	this->hD3D = hD3D;
 	this->bIsDllValid = true;
+	Event << LOG("Loaded DLL") << std::endl;
 	return true;
 }
 

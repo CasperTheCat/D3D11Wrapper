@@ -1,6 +1,8 @@
 #include "stdafx.h"
 #include "d3d11Wrapper.h"
 #include "utils.h"
+#include "d3d11Device.h"
+#include "d3d11DeviceContext.h"
 
 // Global Class
 D3D11Wrapper *d3dw = new D3D11Wrapper();
@@ -35,15 +37,37 @@ HRESULT WINAPI D3D11CreateDevice(
 		return NULL;
 	}
 
+	///
+	//ID3D11Device **temp = ppDevice;
+	//*temp = new D3D11CustomDevice(*ppDevice, &ppDevice);
+	//*ppDevice = *temp;
+	//delete temp;
+
+	//ID3D11DeviceContext **tempCtx = ppImmediateContext;
+	//*tempCtx = new D3D11CustomContext(*ppImmediateContext, &ppImmediateContext);
+	//*ppImmediateContext = *tempCtx;
+	//delete tempCtx;
+
+	d3dw->Event << LOG("Attempting Wrapped Device Creation") << std::endl;
 	HRESULT out = createDev(pAdapter, DriverType, Software, Flags, pFeatureLevels, FeatureLevels, SDKVersion, ppDevice, pFeatureLevel, ppImmediateContext);
 	if (ppDevice != nullptr)
 	{
+		d3dw->Event << LOG("Device Created") << std::endl;
 		d3dw->setDevice(*ppDevice);
+
+		ID3D11DeviceContext *tempCtx = new D3D11CustomContext(*ppImmediateContext);
+		*ppImmediateContext = tempCtx;
+
+		ID3D11Device *temp = new D3D11CustomDevice(*ppDevice);
+		*ppDevice = temp;
 	} 
 	else
 	{
 		d3dw->Event << LOGWAR("Failed to get device from D3D11") << std::endl;
 	}
+
+
+
 
 	return out;
 }
