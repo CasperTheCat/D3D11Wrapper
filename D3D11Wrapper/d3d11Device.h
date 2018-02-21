@@ -7,11 +7,27 @@
 #include <d3d11on12.h>
 #include <fstream>
 
+class IVBuffer
+{
+public:
+	IVBuffer(void* buffer_pointer, UINT size, bool is_index, bool has_vertex)
+		: bufferPointer(buffer_pointer),
+		  uSize(size),
+		  bIsIndex(is_index),
+		  bHasVertex(has_vertex)
+	{
+	}
+
+	void *bufferPointer;
+	UINT uSize;
+	bool bIsIndex;
+	bool bHasVertex;
+};
+
 class D3D11CustomDevice : public ID3D11Device
 {
 protected:
 	ID3D11Device *m_d3dDevice;
-
 
 public:
 	virtual ~D3D11CustomDevice() = default;

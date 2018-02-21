@@ -1,5 +1,13 @@
 #include "d3d11Device.h"
+#include "Globals.h"
 #include <iostream>
+#include <string>
+#include <vector>
+
+extern int lastBufferByteWidth;
+int iBufsCapd = 0;
+bool doingBufferCap = false;
+std::vector<IVBuffer*> bufList;
 
 D3D11CustomDevice::D3D11CustomDevice(ID3D11Device* dev, ID3D11Device*** ret)
 {
@@ -9,11 +17,82 @@ D3D11CustomDevice::D3D11CustomDevice(ID3D11Device* dev, ID3D11Device*** ret)
 
 D3D11CustomDevice::D3D11CustomDevice(ID3D11Device* dev)
 {
-    m_d3dDevice = dev;
+	m_d3dDevice = dev;
 }
 
 HRESULT D3D11CustomDevice::CreateBuffer(const D3D11_BUFFER_DESC* pDesc, const D3D11_SUBRESOURCE_DATA* pInitialData, ID3D11Buffer** ppBuffer)
 {
+	//if(pDesc->BindFlags & D3D11_BIND_INDEX_BUFFER)
+	//{
+	//	std::cout << "Registering Index Buffer" << std::endl;
+	//	bufList.push_back(new IVBuffer(const_cast<D3D11_SUBRESOURCE_DATA*>(pInitialData), pDesc->ByteWidth, true, false));
+	//}
+
+	//if(pDesc->BindFlags & D3D11_BIND_VERTEX_BUFFER)
+	//{ 
+	//	std::cout << "Registering Vertex Buffer" << std::endl;
+	//	if(bufList[bufList.size() - 1]->bIsIndex)
+	//	{
+	//		std::cout << "\tadded as buffer pair" << std::endl;
+	//		bufList[bufList.size() - 1]->bHasVertex = true;
+	//	}
+	//	bufList.push_back(new IVBuffer(const_cast<D3D11_SUBRESOURCE_DATA*>(pInitialData), pDesc->ByteWidth, false, false));
+	//}
+	//if ((pDesc->BindFlags & (D3D11_BIND_INDEX_BUFFER | D3D11_BIND_VERTEX_BUFFER)) && (pDesc->Usage == 0))
+	//{
+	//	std::cout << "Adding read to buffer" << std::endl;
+	//	//std::cout << pDesc->Usage << std::endl;
+	//	
+	//	const_cast<D3D11_BUFFER_DESC*>(pDesc)->Usage = D3D11_USAGE_DYNAMIC;
+	//	const_cast<D3D11_BUFFER_DESC*>(pDesc)->CPUAccessFlags |= D3D11_CPU_ACCESS_FLAG::D3D11_CPU_ACCESS_READ;
+	//}
+
+	//if (pDesc->BindFlags & D3D11_BIND_INDEX_BUFFER)
+	//{
+	//	std::cout << "Dynamicing Index Buffer" << std::endl;
+	//	////lastBufferByteWidth = pDesc->ByteWidth;
+	//	////std::ofstream objStream("Call_" + std::to_string(iBufsCapd++) + ".bufferObject");
+	//	//if (pDesc->Usage != D3D11_USAGE_DEFAULT && pDesc->CPUAccessFlags != D3D11_CPU_ACCESS_FLAG::D3D11_CPU_ACCESS_WRITE)
+	//	//{
+	//	//	const_cast<D3D11_BUFFER_DESC*>(pDesc)->Usage = D3D11_USAGE_DYNAMIC; 
+	//	//	const_cast<D3D11_BUFFER_DESC*>(pDesc)->CPUAccessFlags = D3D11_CPU_ACCESS_FLAG::D3D11_CPU_ACCESS_READ;
+	//	//}
+	//	//const void*const dank = pInitialData->pSysMem;
+	//	//objStream.write(static_cast<char *>(pInitialData->pSysMem), pDesc->ByteWidth);
+	//	//pInitialData->pSysMem;
+	//	std::ofstream objStream("Call_" + std::to_string(iBufsCapd++) + ".bufferObject");
+	//	if (!pInitialData) objStream << "What is this call?" << std::endl;
+	//	else if (!pInitialData->pSysMem) objStream << "RIP" << std::endl;
+	//	else objStream.write(static_cast<char *>(const_cast<void *>(pInitialData->pSysMem)), pDesc->ByteWidth);
+	//	objStream.close();
+	//}
+	//if (pDesc->BindFlags & D3D11_BIND_VERTEX_BUFFER)
+	//{
+	//	std::cout << "Dynamicing Vert Buffer" << std::endl;
+	//	////lastBufferByteWidth = pDesc->ByteWidth;
+	//	////std::ofstream objStream("Call_" + std::to_string(iBufsCapd++) + ".bufferObject");
+	//	if (pDesc->Usage != D3D11_USAGE_DEFAULT && pDesc->CPUAccessFlags != D3D11_CPU_ACCESS_FLAG::D3D11_CPU_ACCESS_WRITE)
+	//	{
+	//		const_cast<D3D11_BUFFER_DESC*>(pDesc)->Usage = D3D11_USAGE_DYNAMIC;
+	//		const_cast<D3D11_BUFFER_DESC*>(pDesc)->CPUAccessFlags = D3D11_CPU_ACCESS_FLAG::D3D11_CPU_ACCESS_READ;
+	//	}
+	//	//const void*const dank = pInitialData->pSysMem;
+	//	//objStream.write(static_cast<char *>(pInitialData->pSysMem), pDesc->ByteWidth);
+	//	//pInitialData->pSysMem;
+	//	std::ofstream objStream("CallV_" + std::to_string(iBufsCapd++) + ".bufferObject");
+	//	if (!pInitialData) objStream << "What is this call?" << std::endl;
+	//	else if (!pInitialData->pSysMem) objStream << "RIP" << std::endl;
+	//	else objStream.write(static_cast<char *>(const_cast<void *>(pInitialData->pSysMem)), pDesc->ByteWidth);
+	//	objStream.close();
+	//}
+	//if ((GetAsyncKeyState(VK_UP) & 0x8000 || doingBufferCap) && iBufsCapd < 10)
+	//{
+	//	doingBufferCap = true;
+	//	std::ofstream objStream("Call_" + std::to_string(iBufsCapd++) + ".bufferObject");
+	//	objStream.write(static_cast<char *>(const_cast<void *>(pInitialData->pSysMem)), pDesc->ByteWidth);
+	//	objStream.close();
+	//}
+
 	return m_d3dDevice->CreateBuffer(pDesc, pInitialData, ppBuffer);
 }
 

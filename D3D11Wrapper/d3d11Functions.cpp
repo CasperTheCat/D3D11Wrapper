@@ -49,6 +49,7 @@ HRESULT WINAPI D3D11CreateDevice(
 	//delete tempCtx;
 
 	d3dw->Event << LOG("Attempting Wrapped Device Creation") << std::endl;
+	//Flags |= D3D11_CREATE_DEVICE_DEBUG;
 	HRESULT out = createDev(pAdapter, DriverType, Software, Flags, pFeatureLevels, FeatureLevels, SDKVersion, ppDevice, pFeatureLevel, ppImmediateContext);
 	if (ppDevice != nullptr)
 	{
@@ -137,12 +138,19 @@ HRESULT WINAPI D3D11CreateDeviceAndSwapChain(
 	if (!createDev) return NULL;
 
 	HRESULT out = createDev(pAdapter, DriverType, Software, Flags, pFeatureLevels, FeatureLevels, SDKVersion,pSwapChainDesc,ppSwapChain, ppDevice, pFeatureLevel, ppImmediateContext);
-	d3dw->setDevice(*ppDevice);
-	d3dw->setSwapChain(*ppSwapChain);
+	if(ppDevice != nullptr)
+	{
+		d3dw->Event << LOG("Device Created") << std::endl;
+		d3dw->setDevice(*ppDevice);
+
+		ID3D11DeviceContext *tempCtx = new D3D11CustomContext(*ppImmediateContext);
+		*ppImmediateContext = tempCtx;
+
+		ID3D11Device *temp = new D3D11CustomDevice(*ppDevice);
+		*ppDevice = temp;
+	}
 	return out;
 }
-
-
 
 typedef HRESULT(WINAPI *DXGIFAC)(REFIID, void **);
 HRESULT WINAPI CreateDXGIFactory(REFIID riid, void **ppFactory)

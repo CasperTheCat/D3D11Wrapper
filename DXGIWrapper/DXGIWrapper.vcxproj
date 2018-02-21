@@ -165,12 +165,16 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="dxgiFactory.h" />
+    <ClInclude Include="dxgiFactory1.h" />
     <ClInclude Include="dxgiWrapper.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="targetver.h" />
     <ClInclude Include="utils.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="dxgiFactory.cpp" />
+    <ClCompile Include="dxgiFactory1.cpp" />
     <ClCompile Include="dxgiFunctions.cpp" />
     <ClCompile Include="dxgiWrapper.cpp" />
     <ClCompile Include="stdafx.cpp" />

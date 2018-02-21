@@ -6,6 +6,29 @@
 #include <d3d11_4.h>
 #include <d3d11on12.h>
 #include <fstream>
+#include "Engine.h"
+
+//////////////////////////////////////////////////////////////////////////
+// Vertex Structure and TexCoord
+//
+struct FCAPVertex
+{
+	Vec3f position;
+	Vec2f texcoord;
+	FCAPVertex(Vec3f pos, Vec2f tex)
+	{
+		position = pos;
+		texcoord = tex;
+	}
+	FCAPVertex(float _x, float _y, float _z, float _u, float _v)
+	{
+		position.x = _x;
+		position.y = _y;
+		position.z = _z;
+		texcoord.x = _u;
+		texcoord.y = _v;
+	}
+};
 
 class D3D11CustomContext : public ID3D11DeviceContext
 {

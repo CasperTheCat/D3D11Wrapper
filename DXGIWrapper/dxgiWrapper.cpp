@@ -43,6 +43,7 @@ bool DXGIWrapper::LoadDLL()
 
 HMODULE DXGIWrapper::getDLL()
 {
+	std::lock_guard<std::mutex> lock(MutLoader);
 	if (!bIsDllValid) this->LoadDLL();
 	return hD3D;
 }

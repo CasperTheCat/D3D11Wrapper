@@ -1,70 +1,139 @@
 #include "stdafx.h"
 #include "utils.h"
 #include "dxgiWrapper.h"
+#include "dxgiFactory.h"
+#include "dxgiFactory1.h"
+#include "dxgiFactory2.h"
 
-DXGIWrapper *dxdw = new DXGIWrapper();
-
+DXGIWrapper *dxgw = new DXGIWrapper();
 
 typedef HRESULT(WINAPI *DXGIFAC)(REFIID, _COM_Outptr_ void **);
-HRESULT WINAPI CreateDXGIFactory(REFIID riid, _COM_Outptr_ void **ppFactory)
+typedef HRESULT(WINAPI *DXGIFAC2)(UINT, REFIID, _COM_Outptr_ void **);
+
+enum class EFactoryType : uint8_t
 {
-	dxdw->Event << LOG("CreateDXGIFactory intercepted") << std::endl;
-	MessageBox(NULL, L"FactoryCreate", L"D3D9Wrapper", MB_OK);
-	DXGIFAC pCreateFactory = (DXGIFAC)GetProcAddress(dxdw->getDLL(), "CreateDXGIFactory");
-	if (!pCreateFactory)
+	DXGIFactory,
+	DXGIFactory1,
+	TOTAL_FACTORY_TYPES
+};
+
+// Helper Function reuse the code
+HRESULT WINAPI CreateDXGIFactory_Generic(REFIID riid, _COM_Outptr_ void **ppFactory, EFactoryType factory)
+{
+	// I assume most calls are made to DXGI Factory Create here and not the other functions.
+	dxgw->Event << LOG("Caught DXGI Factory Call") << std::endl;
+
+	// Get the real function address
+	DXGIFAC pCreateFactory = nullptr;
+	switch(factory)
 	{
-		//g_Globals.ErrorFile() << "coud not find Direct3DCreate9 in d3d9.dll\n";
-		return NULL;
-	}
-	MessageBox(NULL, L"Calling", L"D3D9Wrapper", MB_OK);
-	HRESULT pD3D = pCreateFactory(riid, ppFactory);
-	if (ppFactory == NULL)
-	{
-		MessageBox(NULL, L"Call Failed!", L"D3D9Wrapper", MB_OK);
+	case EFactoryType::DXGIFactory:
+		pCreateFactory = (DXGIFAC)GetProcAddress(dxgw->getDLL(), "CreateDXGIFactory");
+		break;
+	case EFactoryType::DXGIFactory1:
+		pCreateFactory = (DXGIFAC)GetProcAddress(dxgw->getDLL(), "CreateDXGIFactory1");
+		break;
+	default:
+		dxgw->Event << LOGERR("Invalid Factory Type Requested") << std::endl;
 		return NULL;
 	}
 
-	return pD3D;
+	// Check Validity
+	if (pCreateFactory == nullptr)
+	{
+		dxgw->Event << LOGERR("Unable to find CreateDXGIFactory in DLL") << std::endl;
+		return NULL;
+	}
+
+
+	HRESULT hRes = 0;
+	switch (factory)
+	{
+	case EFactoryType::DXGIFactory:
+		dxgw->Event << LOG("Creating DXGI Factory: ");
+		hRes = pCreateFactory(riid, ppFactory);
+		break;
+	case EFactoryType::DXGIFactory1:
+		dxgw->Event << LOG("Creating DXGI Factory1: ");
+		hRes = pCreateFactory(riid, ppFactory);
+		break;
+	default:;
+	}
+
+	
+
+	if (ppFactory != nullptr)
+	{
+		dxgw->Event << "Success" << std::endl;
+
+		// Wrap the factory
+		IDXGIFactory * pTempDXGIFactory = nullptr;
+		switch (factory)
+		{
+		case EFactoryType::DXGIFactory:
+			pTempDXGIFactory = new DXGICustomFactory(*ppFactory);
+			*ppFactory = pTempDXGIFactory;
+			break;
+		case EFactoryType::DXGIFactory1:
+			pTempDXGIFactory = new DXGICustomFactory1(*ppFactory);
+			*ppFactory = pTempDXGIFactory;
+			break;
+		default:;
+		}
+	}
+	else
+	{
+		dxgw->Event << "Failure" << std::endl;
+	}
+
+	return hRes;
+}
+
+
+HRESULT WINAPI CreateDXGIFactory(REFIID riid, _COM_Outptr_ void **ppFactory)
+{
+	return CreateDXGIFactory_Generic(riid, ppFactory, EFactoryType::DXGIFactory);
 }
 
 HRESULT WINAPI CreateDXGIFactory1(REFIID riid, _COM_Outptr_  void **ppFactory)
 {
-	dxdw->Event << LOG("CreateDXGIFactory1 intercepted") << std::endl;
-	MessageBox(NULL, L"FactoryCreate1", L"D3D9Wrapper", MB_OK);
-	DXGIFAC pCreateFactory = (DXGIFAC)GetProcAddress(dxdw->getDLL(), "CreateDXGIFactory1");
-	if (!pCreateFactory)
-	{
-		//g_Globals.ErrorFile() << "coud not find Direct3DCreate9 in d3d9.dll\n";
-		return NULL;
-	}
-	MessageBox(NULL, L"Calling", L"D3D9Wrapper", MB_OK);
-	HRESULT pD3D = pCreateFactory(riid, ppFactory);
-	if (ppFactory == NULL)
-	{
-		MessageBox(NULL, L"Call Failed!", L"D3D9Wrapper", MB_OK);
-		return NULL;
-	}
-
-	return pD3D;
+	return CreateDXGIFactory_Generic(riid, ppFactory, EFactoryType::DXGIFactory1);
 }
 
-HRESULT WINAPI CreateDXGIFactory2(REFIID riid, _COM_Outptr_  void **ppFactory)
+HRESULT WINAPI CreateDXGIFactory2(UINT Flags, REFIID riid, _COM_Outptr_  void **ppFactory)
 {
-	
-	dxdw->Event << LOG("CreateDXGIFactory2 intercepted") << std::endl;
-	MessageBox(NULL, L"FactoryCreate2", L"D3D9Wrapper", MB_OK);
-	DXGIFAC pCreateFactory = (DXGIFAC)GetProcAddress(dxdw->getDLL(), "CreateDXGIFactory2");
-	if (!pCreateFactory)
+	// I assume most calls are made to DXGI Factory Create here and not the other functions.
+	dxgw->Event << LOG("Caught DXGI Factory Call") << std::endl;
+
+	// Get the real function address
+	DXGIFAC2 pCreateFactory = (DXGIFAC2)GetProcAddress(dxgw->getDLL(), "CreateDXGIFactory2");
+
+
+	// Check Validity
+	if (pCreateFactory == nullptr)
 	{
-		//g_Globals.ErrorFile() << "coud not find Direct3DCreate9 in d3d9.dll\n";
+		dxgw->Event << LOGERR("Unable to find CreateDXGIFactory2 in DLL") << std::endl;
 		return NULL;
 	}
 
-	HRESULT pD3D = pCreateFactory(riid, ppFactory);
-	if (ppFactory == NULL)
+
+	dxgw->Event << LOG("Creating DXGI Factory2: ");
+	HRESULT hRes = pCreateFactory(Flags, riid, ppFactory);
+
+
+
+	if (ppFactory != nullptr)
 	{
-		return NULL;
+		dxgw->Event << "Success" << std::endl;
+
+		// Wrap the factory
+		IDXGIFactory *pTempDXGIFactory = new DXGICustomFactory2(*ppFactory);
+		*ppFactory = pTempDXGIFactory;
+	}
+	else
+	{
+		dxgw->Event << "Failure" << std::endl;
 	}
 
-	return pD3D;
+	return hRes;
 }
