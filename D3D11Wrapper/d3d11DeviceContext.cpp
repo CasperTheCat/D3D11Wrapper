@@ -6,6 +6,7 @@
 #include <iomanip>
 #include "d3d11Wrapper.h"
 #include "d3d11Device.h"
+#include "utils.h"
 
 int primsCapd = 0;
 int lastBufferByteWidth = 300;
@@ -14,7 +15,7 @@ extern D3D11Wrapper *d3dw;
 extern bool doingBufferCap;
 extern std::vector<IVBuffer*> bufList;
 
-std::string direct = "";
+std::string direct;
 
 enum FCAPSTATE
 {
@@ -27,6 +28,19 @@ enum FCAPSTATE
 
 FCAPSTATE fcCaptureState = FCAP_READY;
 
+void D3D11CustomContext::Notify_Present()
+{
+	if (CurrentState == ECaptureState::Capture)
+	{
+		CurrentState = ECaptureState::Await;
+	}
+
+	if(CurrentState == ECaptureState::WaitingForPresent)
+	{
+		CurrentState = ECaptureState::Capture;
+	}
+}
+
 D3D11CustomContext::D3D11CustomContext(ID3D11DeviceContext* devCon, ID3D11DeviceContext*** ret)
 {
 	m_devContext = devCon;
@@ -38,8 +52,19 @@ D3D11CustomContext::D3D11CustomContext(ID3D11DeviceContext* devCon)
 	m_devContext = devCon;
 }
 
+D3D11CustomContext::D3D11CustomContext(ID3D11DeviceContext* dev, D3D11CustomDevice* cdev, D3D11Wrapper * Parent)
+{
+	m_devContext = dev;
+	CustomDevice = cdev;
+	CustomDevice->Link(this);
+	ParentWrapper = Parent;
+}
+
 void D3D11CustomContext::VSSetConstantBuffers(UINT StartSlot, UINT NumBuffers, ID3D11Buffer* const* ppConstantBuffers)
 {
+	// This sets the constant buffers. Dump them to disk.
+	// Do we need a serialisation object?
+
 	m_devContext->VSSetConstantBuffers(StartSlot, NumBuffers, ppConstantBuffers);
 }
 
@@ -663,18 +688,12 @@ void FCAPALL()
 
 void D3D11CustomContext::DrawIndexed(UINT IndexCount, UINT StartIndexLocation, INT BaseVertexLocation)
 {
-	if (GetAsyncKeyState(VK_UP) & 0x8000 && !bLookingForCapture)
+	if (GetAsyncKeyState(VK_DOWN) & 0x8000 && CurrentState == ECaptureState::Await)
 	{
-		bLookingForCapture = true;
-		//direct = ResolveDirectory() + "RIP//";
-		std::cout << "Writing to " << direct << std::endl;
+		CurrentState = ECaptureState::WaitingForPresent;
 	}
 
-	if (GetAsyncKeyState(VK_DOWN) & 0x8000 && bLookingForCapture)
-	{
-		bLookingForCapture = false;
-	}
-	if (bLookingForCapture)
+	if (CurrentState == ECaptureState::Capture)
 	{
 		direct = "INDEXED";
 		bLookingForCapture = true;
@@ -689,19 +708,12 @@ void D3D11CustomContext::DrawIndexed(UINT IndexCount, UINT StartIndexLocation, I
 
 void D3D11CustomContext::Draw(UINT VertexCount, UINT StartVertexLocation)
 {
-	if (GetAsyncKeyState(VK_UP) & 0x8000 && !bLookingForCapture)
+	if (GetAsyncKeyState(VK_DOWN) & 0x8000 && CurrentState == ECaptureState::Await)
 	{
-		bLookingForCapture = true;
-		//direct = ResolveDirectory() + "RIP//";
-		std::cout << "Writing to " << direct << std::endl;
+		CurrentState = ECaptureState::WaitingForPresent;
 	}
 
-	if (GetAsyncKeyState(VK_DOWN) & 0x8000 && bLookingForCapture)
-	{
-		bLookingForCapture = false;
-	}
-
-	if (bLookingForCapture)
+	if (CurrentState == ECaptureState::Capture)
 	{
 		direct = "DF";
 		bLookingForCapture = true;
@@ -745,19 +757,12 @@ void D3D11CustomContext::IASetIndexBuffer(ID3D11Buffer* pIndexBuffer, DXGI_FORMA
 
 void D3D11CustomContext::DrawIndexedInstanced(UINT IndexCountPerInstance, UINT InstanceCount, UINT StartIndexLocation, INT BaseVertexLocation, UINT StartInstanceLocation)
 {
-	if (GetAsyncKeyState(VK_UP) & 0x8000 && !bLookingForCapture)
+	if (GetAsyncKeyState(VK_DOWN) & 0x8000 && CurrentState == ECaptureState::Await)
 	{
-		bLookingForCapture = true;
-		//direct = ResolveDirectory() + "RIP\\";
-		std::cout << "Writing to " << direct << std::endl;
+		CurrentState = ECaptureState::WaitingForPresent;
 	}
 
-	if (GetAsyncKeyState(VK_DOWN) & 0x8000 && bLookingForCapture)
-	{
-		bLookingForCapture = false;
-	}
-
-	if (bLookingForCapture)
+	if (CurrentState == ECaptureState::Capture)
 	{
 		direct = "InstINDEXED";
 		bLookingForCapture = true;

@@ -9,6 +9,7 @@ int iBufsCapd = 0;
 bool doingBufferCap = false;
 std::vector<IVBuffer*> bufList;
 
+
 D3D11CustomDevice::D3D11CustomDevice(ID3D11Device* dev, ID3D11Device*** ret)
 {
 	m_d3dDevice = dev;
@@ -18,6 +19,18 @@ D3D11CustomDevice::D3D11CustomDevice(ID3D11Device* dev, ID3D11Device*** ret)
 D3D11CustomDevice::D3D11CustomDevice(ID3D11Device* dev)
 {
 	m_d3dDevice = dev;
+}
+
+void D3D11CustomDevice::Notify_Present()
+{
+	if(CustomContext) CustomContext->Notify_Present();
+	else std::cout << "NotifyPresent Called on nullptr" << std::endl;
+
+}
+
+void D3D11CustomDevice::Link(D3D11CustomContext* devCon)
+{
+	CustomContext = devCon;
 }
 
 HRESULT D3D11CustomDevice::CreateBuffer(const D3D11_BUFFER_DESC* pDesc, const D3D11_SUBRESOURCE_DATA* pInitialData, ID3D11Buffer** ppBuffer)

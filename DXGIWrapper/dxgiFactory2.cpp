@@ -1,10 +1,17 @@
 
 #include "dxgiFactory2.h"
+#include "dxgiSwapchain2.h"
+#include "utils.h"
 
 DXGICustomFactory2::DXGICustomFactory2(void* factory)
 {
 	// Don't error for speed
-	DxgiFactory = reinterpret_cast<IDXGIFactory2*>(factory);
+	DxgiFactory = reinterpret_cast<IDXGIFactory3*>(factory);
+	Event.open("DXGIFactory2.log");
+	Event << LOG("Initialising") << std::endl;
+	Event << DxgiFactory << std::endl;
+	Event << DxgiFactory->IsWindowedStereoEnabled();
+	Event << ": Success" << std::endl;
 }
 
 DXGICustomFactory2::~DXGICustomFactory2()
@@ -18,14 +25,22 @@ BOOL DXGICustomFactory2::IsWindowedStereoEnabled()
 HRESULT DXGICustomFactory2::CreateSwapChainForHwnd(IUnknown* pDevice, HWND hWnd, const DXGI_SWAP_CHAIN_DESC1* pDesc,
 	const DXGI_SWAP_CHAIN_FULLSCREEN_DESC* pFullscreenDesc, IDXGIOutput* pRestrictToOutput, IDXGISwapChain1** ppSwapChain)
 {
+	Event << "CREATE" << std::endl;
 	// HOOK THIS
-	return DxgiFactory->CreateSwapChainForHwnd(pDevice, hWnd, pDesc, pFullscreenDesc, pRestrictToOutput, ppSwapChain);
+	const auto temp = DxgiFactory->CreateSwapChainForHwnd(pDevice, hWnd, pDesc, pFullscreenDesc, pRestrictToOutput, ppSwapChain);
+	//const auto tempSwapChain = new DXGICustomSwapChain2(*ppSwapChain, pDevice);
+	//*ppSwapChain = tempSwapChain;
+	return temp;
 }
 
 HRESULT DXGICustomFactory2::CreateSwapChainForCoreWindow(IUnknown* pDevice, IUnknown* pWindow,
 	const DXGI_SWAP_CHAIN_DESC1* pDesc, IDXGIOutput* pRestrictToOutput, IDXGISwapChain1** ppSwapChain)
 {
-	return DxgiFactory->CreateSwapChainForCoreWindow(pDevice, pWindow, pDesc, pRestrictToOutput, ppSwapChain);
+	Event << "CREATE1" << std::endl;
+	const auto temp = DxgiFactory->CreateSwapChainForCoreWindow(pDevice, pWindow, pDesc, pRestrictToOutput, ppSwapChain);
+	//const auto tempSwapChain = new DXGICustomSwapChain2(*ppSwapChain, pDevice);
+	//*ppSwapChain = tempSwapChain;
+	return temp;
 }
 
 HRESULT DXGICustomFactory2::GetSharedResourceAdapterLuid(HANDLE hResource, LUID* pLuid)
@@ -66,7 +81,11 @@ void DXGICustomFactory2::UnregisterOcclusionStatus(DWORD dwCookie)
 HRESULT DXGICustomFactory2::CreateSwapChainForComposition(IUnknown* pDevice, const DXGI_SWAP_CHAIN_DESC1* pDesc,
 	IDXGIOutput* pRestrictToOutput, IDXGISwapChain1** ppSwapChain)
 {
-	return DxgiFactory->CreateSwapChainForComposition(pDevice, pDesc, pRestrictToOutput, ppSwapChain);
+	Event << "CREATE2" << std::endl;
+	const auto temp = DxgiFactory->CreateSwapChainForComposition(pDevice, pDesc, pRestrictToOutput, ppSwapChain);
+	//const auto tempSwapChain = new DXGICustomSwapChain2(*ppSwapChain, pDevice);
+	//*ppSwapChain = tempSwapChain;
+	return temp;
 }
 
 HRESULT DXGICustomFactory2::EnumAdapters(UINT Adapter, IDXGIAdapter** ppAdapter)
@@ -86,7 +105,11 @@ HRESULT DXGICustomFactory2::GetWindowAssociation(HWND* pWindowHandle)
 
 HRESULT DXGICustomFactory2::CreateSwapChain(IUnknown* pDevice, DXGI_SWAP_CHAIN_DESC* pDesc, IDXGISwapChain** ppSwapChain)
 {
-	return DxgiFactory->CreateSwapChain(pDevice, pDesc, ppSwapChain);
+	Event << "CREATE2" << std::endl;
+	const auto temp = DxgiFactory->CreateSwapChain(pDevice, pDesc, ppSwapChain);
+	//const auto tempSwapChain = new DXGICustomSwapChain2(*ppSwapChain, pDevice);
+	//*ppSwapChain = tempSwapChain;
+	return temp;
 }
 
 HRESULT DXGICustomFactory2::CreateSoftwareAdapter(HMODULE Module, IDXGIAdapter** ppAdapter)
@@ -137,4 +160,9 @@ HRESULT DXGICustomFactory2::EnumAdapters1(UINT Adapter, IDXGIAdapter1** ppAdapte
 BOOL DXGICustomFactory2::IsCurrent()
 {
 	return DxgiFactory->IsCurrent();
+}
+
+UINT DXGICustomFactory2::GetCreationFlags()
+{
+	return DxgiFactory->GetCreationFlags();
 }

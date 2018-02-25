@@ -1,10 +1,17 @@
 #include "dxgiSwapchain2.h"
+#include "utils.h"
 
 #pragma region DXGISwapChain2
 
-DXGICustomSwapChain2::DXGICustomSwapChain2(void * swapchain)
+DXGICustomSwapChain2::DXGICustomSwapChain2(void * swapchain, IUnknown * dev)
 {
+	// Check the device for hook
+	CustomDevice = dynamic_cast<D3D11CustomDevice*>(dev);
 	DxgiSwapchain = reinterpret_cast<IDXGISwapChain2*>(swapchain);
+	Event.open("DXGISwapChain.log");
+	Event << LOG("Initialising") << std::endl;
+	Event << CustomDevice << std::endl;
+	Event << ": Success" << std::endl;
 }
 
 HRESULT DXGICustomSwapChain2::SetSourceSize(UINT Width, UINT Height)
@@ -67,6 +74,7 @@ HRESULT DXGICustomSwapChain2::GetCoreWindow(const IID& refiid, void** ppUnk)
 HRESULT DXGICustomSwapChain2::Present1(UINT SyncInterval, UINT PresentFlags,
 	const DXGI_PRESENT_PARAMETERS* pPresentParameters)
 {
+	if (CustomDevice) CustomDevice->Notify_Present();
 	return DxgiSwapchain->Present1(SyncInterval, PresentFlags, pPresentParameters);
 }
 
@@ -104,6 +112,7 @@ HRESULT DXGICustomSwapChain2::GetRotation(DXGI_MODE_ROTATION* pRotation)
 #pragma region DXGISwapChain
 HRESULT DXGICustomSwapChain2::Present(UINT SyncInterval, UINT Flags)
 {
+	if (CustomDevice) CustomDevice->Notify_Present();
 	return DxgiSwapchain->Present(SyncInterval, Flags);
 }
 

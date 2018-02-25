@@ -1,9 +1,15 @@
 #include "dxgiFactory1.h"
+#include "dxgiSwapchain2.h"
+#include "utils.h"
 
 DXGICustomFactory1::DXGICustomFactory1(void* factory)
 {
 	// Don't error for speed
 	DxgiFactory = reinterpret_cast<IDXGIFactory1*>(factory);
+	Event.open("DXGIFactory1.log");
+	Event << LOG("Initialising") << std::endl;
+	Event << DxgiFactory << std::endl;
+	Event << ": Success" << std::endl;
 }
 
 DXGICustomFactory1::~DXGICustomFactory1()
@@ -26,7 +32,10 @@ HRESULT DXGICustomFactory1::GetWindowAssociation(HWND* pWindowHandle)
 
 HRESULT DXGICustomFactory1::CreateSwapChain(IUnknown* pDevice, DXGI_SWAP_CHAIN_DESC* pDesc, IDXGISwapChain** ppSwapChain)
 {
-	return DxgiFactory->CreateSwapChain(pDevice, pDesc, ppSwapChain);
+	const auto temp = DxgiFactory->CreateSwapChain(pDevice, pDesc, ppSwapChain);
+	const auto tempSwapChain = new DXGICustomSwapChain2(*ppSwapChain, pDevice);
+	*ppSwapChain = tempSwapChain;
+	return temp;
 }
 
 HRESULT DXGICustomFactory1::CreateSoftwareAdapter(HMODULE Module, IDXGIAdapter** ppAdapter)

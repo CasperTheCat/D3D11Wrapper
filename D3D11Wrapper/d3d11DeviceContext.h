@@ -7,6 +7,8 @@
 #include <d3d11on12.h>
 #include <fstream>
 #include "Engine.h"
+#include "d3d11Device.h"
+#include "d3d11Wrapper.h"
 
 //////////////////////////////////////////////////////////////////////////
 // Vertex Structure and TexCoord
@@ -30,14 +32,31 @@ struct FCAPVertex
 	}
 };
 
+enum class ECaptureState : uint8_t
+{
+	Await,
+	WaitingForPresent,
+	Capture,
+	Finished
+};
+
 class D3D11CustomContext : public ID3D11DeviceContext
 {
+	friend class D3D11CustomDevice;
 protected:
 	ID3D11DeviceContext *m_devContext;
+	D3D11CustomDevice *CustomDevice;
+	ECaptureState CurrentState;
+	D3D11Wrapper * ParentWrapper;
 
+
+	// Callback
+	void Notify_Present();
 public:
+	virtual ~D3D11CustomContext() = default;
 	D3D11CustomContext(ID3D11DeviceContext *dev, ID3D11DeviceContext ***ret);
 	D3D11CustomContext(ID3D11DeviceContext *dev);
+	D3D11CustomContext(ID3D11DeviceContext *dev, D3D11CustomDevice *cdev, D3D11Wrapper * Parent);
 
 
 	void STDMETHODCALLTYPE VSSetConstantBuffers(

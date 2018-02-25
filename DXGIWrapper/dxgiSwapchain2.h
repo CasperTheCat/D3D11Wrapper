@@ -8,8 +8,9 @@ class DXGICustomSwapChain2 : public IDXGISwapChain2
 protected:
 	IDXGISwapChain2 * DxgiSwapchain;
 	D3D11CustomDevice * CustomDevice;
+	std::ofstream Event;
 public:
-	DXGICustomSwapChain2(void * swapchain);
+	DXGICustomSwapChain2(void * swapchain, IUnknown * dev);
 	virtual ~DXGICustomSwapChain2() = default;
 
 	#pragma region DXGISwapChain2

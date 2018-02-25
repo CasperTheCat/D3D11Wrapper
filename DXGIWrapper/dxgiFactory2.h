@@ -1,14 +1,20 @@
 #pragma once
 #include "dxgiFactory.h"
 #include <d3d11_1.h>
+#include <fstream>
+#include <d3d11_2.h>
 
-class DXGICustomFactory2 : public IDXGIFactory2
+class DXGICustomFactory2 : public IDXGIFactory3
 {
 protected:
-	IDXGIFactory2 *DxgiFactory;
+	IDXGIFactory3 *DxgiFactory;
+	std::ofstream Event;
 public:
 	DXGICustomFactory2(void* factory);
 	virtual ~DXGICustomFactory2();
+
+	// IDXGIFactory3
+	virtual UINT STDMETHODCALLTYPE GetCreationFlags(void) override;
 
 	// IDXGIFactory2
 	virtual BOOL STDMETHODCALLTYPE IsWindowedStereoEnabled(void) override;

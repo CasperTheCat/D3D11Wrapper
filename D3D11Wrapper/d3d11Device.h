@@ -6,6 +6,8 @@
 #include <d3d11_4.h>
 #include <d3d11on12.h>
 #include <fstream>
+#include <vector>
+#include "d3d11DeviceContext.h"
 
 class IVBuffer
 {
@@ -28,11 +30,15 @@ class D3D11CustomDevice : public ID3D11Device
 {
 protected:
 	ID3D11Device *m_d3dDevice;
+	class D3D11CustomContext * CustomContext;
 
 public:
 	virtual ~D3D11CustomDevice() = default;
 	D3D11CustomDevice(ID3D11Device *dev, ID3D11Device ***ret);
     D3D11CustomDevice(ID3D11Device *dev);
+	
+	virtual void Notify_Present();
+	virtual void Link(D3D11CustomContext *devCon);
 
 	HRESULT STDMETHODCALLTYPE CreateBuffer(
 		/* [annotation] */

@@ -1,10 +1,12 @@
 #pragma once
 #include <dxgi.h>
+#include <fstream>
 
 class DXGICustomFactory : public IDXGIFactory
 {
 protected:
 	IDXGIFactory *DxgiFactory;
+	std::ofstream Event;
 public:
 	DXGICustomFactory(void* factory);
 	virtual ~DXGICustomFactory();

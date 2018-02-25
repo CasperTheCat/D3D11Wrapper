@@ -168,6 +168,7 @@
     <Text Include="ReadMe.txt" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\DXGIWrapper\dxgiSwapchain2.h" />
     <ClInclude Include="d3d11Device.h" />
     <ClInclude Include="d3d11DeviceContext.h" />
     <ClInclude Include="d3d11Wrapper.h" />
@@ -177,6 +178,7 @@
     <ClInclude Include="utils.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\DXGIWrapper\dxgiSwapchain2.cpp" />
     <ClCompile Include="d3d11Device.cpp" />
     <ClCompile Include="d3d11DeviceContext.cpp" />
     <ClCompile Include="d3d11Functions.cpp" />

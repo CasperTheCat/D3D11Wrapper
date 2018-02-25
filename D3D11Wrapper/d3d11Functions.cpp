@@ -3,6 +3,7 @@
 #include "utils.h"
 #include "d3d11Device.h"
 #include "d3d11DeviceContext.h"
+#include "../DXGIWrapper/dxgiSwapchain2.h"
 
 // Global Class
 D3D11Wrapper *d3dw = new D3D11Wrapper();
@@ -56,19 +57,16 @@ HRESULT WINAPI D3D11CreateDevice(
 		d3dw->Event << LOG("Device Created") << std::endl;
 		d3dw->setDevice(*ppDevice);
 
-		ID3D11DeviceContext *tempCtx = new D3D11CustomContext(*ppImmediateContext);
-		*ppImmediateContext = tempCtx;
-
-		ID3D11Device *temp = new D3D11CustomDevice(*ppDevice);
+		const auto temp = new D3D11CustomDevice(*ppDevice);
 		*ppDevice = temp;
+
+		ID3D11DeviceContext *tempCtx = new D3D11CustomContext(*ppImmediateContext, temp, d3dw);
+		*ppImmediateContext = tempCtx;
 	} 
 	else
 	{
 		d3dw->Event << LOGWAR("Failed to get device from D3D11") << std::endl;
 	}
-
-
-
 
 	return out;
 }
@@ -143,11 +141,14 @@ HRESULT WINAPI D3D11CreateDeviceAndSwapChain(
 		d3dw->Event << LOG("Device Created") << std::endl;
 		d3dw->setDevice(*ppDevice);
 
-		ID3D11DeviceContext *tempCtx = new D3D11CustomContext(*ppImmediateContext);
+		const auto temp = new D3D11CustomDevice(*ppDevice);
+		*ppDevice = temp;
+
+		ID3D11DeviceContext *tempCtx = new D3D11CustomContext(*ppImmediateContext, temp, d3dw);
 		*ppImmediateContext = tempCtx;
 
-		ID3D11Device *temp = new D3D11CustomDevice(*ppDevice);
-		*ppDevice = temp;
+		const auto tempSc = new DXGICustomSwapChain2(*ppSwapChain, temp);
+		*ppSwapChain = tempSc;
 	}
 	return out;
 }
