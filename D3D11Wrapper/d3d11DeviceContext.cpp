@@ -52,25 +52,139 @@ enum class EDRAWSTATE : uint8_t
 
 void D3D11CustomContext::Notify_Present()
 {
+	drawCallNumber = 0;
+	vsBufferNumber = 0;
+	psBufferNumber = 0;
 	std::cout << "Present Notify" << std::endl;
 	if (CurrentState == ECaptureState::Capture)
 	{
 		CurrentState = ECaptureState::Await;
 		std::cout << "Captured Frame was presented. Switching to Await" << std::endl;
+		infoOutput.close();
 	}
 
 	if(CurrentState == ECaptureState::WaitingForPresent)
 	{
 		CurrentState = ECaptureState::Capture;
 		std::cout << "Switching to Capture State" << std::endl;
+		// Preemptively open a output stream
+		infoOutput = std::ofstream(std::to_string(drawCallNumber) + ".vmrinfo");
+		infoOutput << "BufferType, BufferSize, BufferStride, BindFlags, Usage, BufferOffset, VertexInfoStride" << std::endl;
 	}
-
-	drawCallNumber = 0;
-	vsBufferNumber = 0;
-	psBufferNumber = 0;
 }
 
-int DumpVSConstBuffer(ID3D11Device* Device, ID3D11DeviceContext *DevC, ID3D11Buffer * const * ppConstBuffer)
+int D3D11CustomContext::SaveVBandIBFromDevice(ID3D11Device* Device, ID3D11DeviceContext* DevC)
+{
+	// Write out all of the info for the buffers and CSV header
+
+	ID3D11Buffer *indexBuffer = nullptr;
+	DXGI_FORMAT indBufFormat;
+	UINT offset1;
+	DevC->IAGetIndexBuffer(&indexBuffer, &indBufFormat, &offset1);
+
+	if (!indexBuffer) return 1;
+
+	/// CREATE CPUSIDE BUFFER
+	D3D11_BUFFER_DESC ciBuf;
+	ID3D11Buffer *cpuIB;
+	indexBuffer->GetDesc(&ciBuf);
+
+	D3D11_BUFFER_DESC i_buffer_desc;
+	i_buffer_desc.Usage = D3D11_USAGE::D3D11_USAGE_STAGING;
+	i_buffer_desc.BindFlags = 0;
+	i_buffer_desc.ByteWidth = ciBuf.ByteWidth;
+	i_buffer_desc.CPUAccessFlags = D3D11_CPU_ACCESS_FLAG::D3D11_CPU_ACCESS_READ;
+	i_buffer_desc.MiscFlags = 0;
+	i_buffer_desc.StructureByteStride = ciBuf.StructureByteStride;
+
+	// Output index buffer infomation
+	infoOutput << "Index," << ciBuf.ByteWidth << "," << ciBuf.StructureByteStride << "," << ciBuf.BindFlags << "," << ciBuf.Usage << "," << offset1 << ",0" << std::endl;
+
+	// CPU Array
+	char* cpuibarr = new char[ciBuf.ByteWidth];
+	ZeroMemory(cpuibarr, ciBuf.ByteWidth);
+
+	// Create D3D11 Subresource
+	D3D11_SUBRESOURCE_DATA ini_data;
+	ini_data.pSysMem = cpuibarr;
+	ini_data.SysMemPitch = 0;
+	ini_data.SysMemSlicePitch = 0;
+
+	// Create the buffer and copy from the actual buffer to the new one
+	Device->CreateBuffer(&i_buffer_desc, &ini_data, &cpuIB);
+	DevC->CopyResource(cpuIB, indexBuffer);
+
+	// Use a mapped subresource to map the data to the CPU
+	D3D11_MAPPED_SUBRESOURCE ms;
+	HRESULT h = DevC->Map(cpuIB, 0, D3D11_MAP::D3D11_MAP_READ, NULL, &ms);
+
+	if (ms.pData)
+	{
+		// Data is valid. Save it
+		std::ofstream ibOut(std::to_string(drawCallNumber) + "." + direct + ".vmrib", std::ofstream::binary);
+		ibOut.write(reinterpret_cast<char *>(ms.pData), ciBuf.ByteWidth);
+	}
+	else return 1;
+
+	/// Unlock and release buffers
+	DevC->Unmap(cpuIB, NULL);
+	indexBuffer->Release();
+	cpuIB->Release();
+	delete[] cpuibarr;
+
+
+	/// Continue and do the vertex buffer
+	ID3D11Buffer *vBufs;
+	UINT Stride;
+	UINT Offset;
+	DevC->IAGetVertexBuffers(0, 1, &vBufs, &Stride, &Offset);
+
+	if (!vBufs) return 1;
+
+	/// CREATE CPUSIDE BUFFER
+	vBufs->GetDesc(&ciBuf);
+
+	i_buffer_desc.Usage = D3D11_USAGE::D3D11_USAGE_STAGING;
+	i_buffer_desc.BindFlags = 0;
+	i_buffer_desc.ByteWidth = ciBuf.ByteWidth;
+	i_buffer_desc.CPUAccessFlags = D3D11_CPU_ACCESS_FLAG::D3D11_CPU_ACCESS_READ | D3D11_CPU_ACCESS_WRITE;
+	i_buffer_desc.MiscFlags = 0;
+	i_buffer_desc.StructureByteStride = ciBuf.StructureByteStride;
+
+	infoOutput << "Vertex," << ciBuf.ByteWidth << "," << ciBuf.StructureByteStride << "," << ciBuf.BindFlags << "," << ciBuf.Usage << "," << Offset << "," << Stride << std::endl;
+
+	char* ciarr = new char[ciBuf.ByteWidth];
+	ZeroMemory(ciarr, ciBuf.ByteWidth);
+
+	ini_data.pSysMem = ciarr;
+	ini_data.SysMemPitch = 0;
+	ini_data.SysMemSlicePitch = 0;
+
+	Device->CreateBuffer(&i_buffer_desc, &ini_data, &cpuIB);
+	DevC->CopyResource(cpuIB, vBufs);
+	DevC->Map(cpuIB, NULL, D3D11_MAP_READ, NULL, &ms);
+
+	if (ms.pData)
+	{
+		std::ofstream vbOut(std::to_string(drawCallNumber) + "." + direct + ".vmrvb", std::ofstream::binary);
+
+		vbOut.write(reinterpret_cast<char *>(ms.pData), ciBuf.ByteWidth);
+	}
+	else return 1;
+
+
+	DevC->Unmap(cpuIB, NULL);
+	vBufs->Release();
+	cpuIB->Release();
+	delete[] ciarr;
+
+
+
+	return 0;
+}
+
+int D3D11CustomContext::DumpVSConstBuffer(ID3D11Device* Device, ID3D11DeviceContext* DevC,
+	ID3D11Buffer* const* ppConstBuffer)
 {
 	if (!ppConstBuffer) return 1;
 
@@ -89,6 +203,8 @@ int DumpVSConstBuffer(ID3D11Device* Device, ID3D11DeviceContext *DevC, ID3D11Buf
 	i_buffer_desc.CPUAccessFlags = D3D11_CPU_ACCESS_FLAG::D3D11_CPU_ACCESS_READ;
 	i_buffer_desc.MiscFlags = 0;
 	i_buffer_desc.StructureByteStride = ciBuf.StructureByteStride;
+
+	infoOutput << "Const," << ciBuf.ByteWidth << "," << ciBuf.StructureByteStride << "," << ciBuf.BindFlags << "," << ciBuf.Usage << ",0,0" << std::endl;
 
 	// CPU Array
 	char* cpuibarr = new char[ciBuf.ByteWidth];
@@ -111,7 +227,7 @@ int DumpVSConstBuffer(ID3D11Device* Device, ID3D11DeviceContext *DevC, ID3D11Buf
 	if (ms.pData)
 	{
 		// Data is valid. Save it
-		std::ofstream ibOut(std::to_string(drawCallNumber) + "." + direct + "." + std::to_string(vsBufferNumber) + ".vmrcb", std::ofstream::binary);
+		std::ofstream ibOut(std::to_string(drawCallNumber) + "." + std::to_string(vsBufferNumber) + ".vmrcb", std::ofstream::binary);
 
 		ibOut.write(reinterpret_cast<char *>(ms.pData), ciBuf.ByteWidth);
 	}
@@ -782,107 +898,6 @@ void FCAPALL()
 	}
 }
 
-int SaveVBandIBFromDevice(ID3D11Device* Device, ID3D11DeviceContext* DevC)
-{
-	ID3D11Buffer *indexBuffer = nullptr;
-	DXGI_FORMAT indBufFormat;
-	UINT offset;
-	DevC->IAGetIndexBuffer(&indexBuffer, &indBufFormat, &offset);
-
-	if (!indexBuffer) return 1;
-
-	/// CREATE CPUSIDE BUFFER
-	D3D11_BUFFER_DESC ciBuf;
-	ID3D11Buffer *cpuIB;
-	indexBuffer->GetDesc(&ciBuf);
-
-	D3D11_BUFFER_DESC i_buffer_desc;
-	i_buffer_desc.Usage = D3D11_USAGE::D3D11_USAGE_STAGING;
-	i_buffer_desc.BindFlags = 0;
-	i_buffer_desc.ByteWidth = ciBuf.ByteWidth;
-	i_buffer_desc.CPUAccessFlags = D3D11_CPU_ACCESS_FLAG::D3D11_CPU_ACCESS_READ;
-	i_buffer_desc.MiscFlags = 0;
-	i_buffer_desc.StructureByteStride = ciBuf.StructureByteStride;
-
-	// CPU Array
-	char* cpuibarr = new char[ciBuf.ByteWidth];
-	ZeroMemory(cpuibarr, ciBuf.ByteWidth);
-
-	// Create D3D11 Subresource
-	D3D11_SUBRESOURCE_DATA ini_data;
-	ini_data.pSysMem = cpuibarr;
-	ini_data.SysMemPitch = 0;
-	ini_data.SysMemSlicePitch = 0;
-
-	// Create the buffer and copy from the actual buffer to the new one
-	Device->CreateBuffer(&i_buffer_desc, &ini_data, &cpuIB);
-	DevC->CopyResource(cpuIB, indexBuffer);
-
-	// Use a mapped subresource to map the data to the CPU
-	D3D11_MAPPED_SUBRESOURCE ms;
-	HRESULT h = DevC->Map(cpuIB, 0, D3D11_MAP::D3D11_MAP_READ, NULL, &ms);
-
-	if (ms.pData)
-	{
-		// Data is valid. Save it
-		std::ofstream ibOut(std::to_string(drawCallNumber) + "." + direct + ".vmrib", std::ofstream::binary);
-
-		ibOut.write(reinterpret_cast<char *>(ms.pData), ciBuf.ByteWidth);
-	}
-	else return 1;
-	
-	/// Unlock and release buffers
-	DevC->Unmap(cpuIB, NULL);
-	indexBuffer->Release();
-	cpuIB->Release();
-	delete[] cpuibarr;
-
-
-	/// Continue and do the vertex buffer
-	ID3D11Buffer *vBufs;
-	UINT Stride;
-	UINT Offset;
-	DevC->IAGetVertexBuffers(0, 1, &vBufs, &Stride, &Offset);
-
-	if (!vBufs) return 1;
-
-	/// CREATE CPUSIDE BUFFER
-	vBufs->GetDesc(&ciBuf);
-
-	i_buffer_desc.Usage = D3D11_USAGE::D3D11_USAGE_STAGING;
-	i_buffer_desc.BindFlags = 0;
-	i_buffer_desc.ByteWidth = ciBuf.ByteWidth;
-	i_buffer_desc.CPUAccessFlags = D3D11_CPU_ACCESS_FLAG::D3D11_CPU_ACCESS_READ | D3D11_CPU_ACCESS_WRITE;
-	i_buffer_desc.MiscFlags = 0;
-	i_buffer_desc.StructureByteStride = ciBuf.StructureByteStride;
-
-	char* ciarr = new char[ciBuf.ByteWidth];
-	ZeroMemory(ciarr, ciBuf.ByteWidth);
-
-	ini_data.pSysMem = ciarr;
-	ini_data.SysMemPitch = 0;
-	ini_data.SysMemSlicePitch = 0;
-
-	Device->CreateBuffer(&i_buffer_desc, &ini_data, &cpuIB);
-	DevC->CopyResource(cpuIB, vBufs);
-	DevC->Map(cpuIB, NULL, D3D11_MAP_READ, NULL, &ms);
-
-	if (ms.pData)
-	{
-		std::ofstream vbOut(std::to_string(drawCallNumber) + "." + direct + ".vmrvb", std::ofstream::binary);
-
-		vbOut.write(reinterpret_cast<char *>(ms.pData), ciBuf.ByteWidth);
-	}
-	else return 1;
-
-
-	DevC->Unmap(cpuIB, NULL);
-	vBufs->Release();
-	cpuIB->Release();
-	delete[] ciarr;
-	return 0;
-}
-
 void D3D11CustomContext::DrawIndexed(UINT IndexCount, UINT StartIndexLocation, INT BaseVertexLocation)
 {
 	if (GetAsyncKeyState(VK_DOWN) & 0x8000 && CurrentState == ECaptureState::Await)
@@ -914,7 +929,12 @@ void D3D11CustomContext::DrawIndexed(UINT IndexCount, UINT StartIndexLocation, I
 		FCapMeshLogicIndexSegment(dev, this, StartIndexLocation, BaseVertexLocation, IndexCount);
 #endif
 		resetBufferCounters();
-		++drawCallNumber;
+		++drawCallNumber;	
+#ifdef __DUMP_DATA__
+		infoOutput.close();
+		infoOutput = std::ofstream(std::to_string(drawCallNumber) + ".vmrinfo");
+		infoOutput << "BufferType, BufferSize, BufferStride, BindFlags, Usage, BufferOffset, VertexInfoStride" << std::endl;
+#endif
 	}
 
 	m_devContext->DrawIndexed(IndexCount, StartIndexLocation, BaseVertexLocation);
@@ -951,6 +971,11 @@ void D3D11CustomContext::Draw(UINT VertexCount, UINT StartVertexLocation)
 #endif
 		resetBufferCounters();
 		++drawCallNumber;
+#ifdef __DUMP_DATA__
+		infoOutput.close();
+		infoOutput = std::ofstream(std::to_string(drawCallNumber) + ".vmrinfo");
+		infoOutput << "BufferType, BufferSize, BufferStride, BindFlags, Usage, BufferOffset, VertexInfoStride" << std::endl;
+#endif
 	}
 	m_devContext->Draw(VertexCount, StartVertexLocation);
 
@@ -1017,6 +1042,11 @@ void D3D11CustomContext::DrawIndexedInstanced(UINT IndexCountPerInstance, UINT I
 #endif
 		resetBufferCounters();
 		++drawCallNumber;
+#ifdef __DUMP_DATA__
+		infoOutput.close();
+		infoOutput = std::ofstream(std::to_string(drawCallNumber) + ".vmrinfo");
+		infoOutput << "BufferType, BufferSize, BufferStride, BindFlags, Usage, BufferOffset, VertexInfoStride" << std::endl;
+#endif
 	}
 	
 	m_devContext->DrawIndexedInstanced(IndexCountPerInstance, InstanceCount, StartIndexLocation, BaseVertexLocation, StartInstanceLocation);
@@ -1050,6 +1080,11 @@ void D3D11CustomContext::DrawInstanced(UINT VertexCountPerInstance, UINT Instanc
 #endif
 		resetBufferCounters();
 		++drawCallNumber;
+#ifdef __DUMP_DATA__
+		infoOutput.close();
+		infoOutput = std::ofstream(std::to_string(drawCallNumber) + ".vmrinfo");
+		infoOutput << "BufferType, BufferSize, BufferStride, BindFlags, Usage, BufferOffset, VertexInfoStride" << std::endl;
+#endif
 	}
 
 	m_devContext->DrawInstanced(VertexCountPerInstance, InstanceCount, StartVertexLocation, StartInstanceLocation);
