@@ -7,6 +7,9 @@
 #include "d3d11Wrapper.h"
 #include "d3d11Device.h"
 #include "utils.h"
+#include <mutex>
+
+#define __DUMP_DATA__ 1
 
 int primsCapd = 0;
 int lastBufferByteWidth = 300;
@@ -17,7 +20,21 @@ extern std::vector<IVBuffer*> bufList;
 
 std::string direct;
 
-enum FCAPSTATE
+std::mutex vsBufferMutex;
+std::mutex psBufferMutex;
+std::mutex drawCallMutex;
+
+uint32_t drawCallNumber;
+uint32_t vsBufferNumber;
+uint32_t psBufferNumber;
+
+void resetBufferCounters()
+{
+	vsBufferNumber = 0;
+	psBufferNumber = 0;
+}
+
+enum class FCAPSTATE : uint8_t
 {
 	FCAP_READY,
 	FCAP_WAITING,
@@ -26,30 +43,99 @@ enum FCAPSTATE
 	FCAP_TOTAL_STATES
 };
 
-FCAPSTATE fcCaptureState = FCAP_READY;
+enum class EDRAWSTATE : uint8_t
+{
+	DUMMY
+};
+
+//FCAPSTATE fcCaptureState = FCAPSTATE::FCAP_READY;
 
 void D3D11CustomContext::Notify_Present()
 {
+	std::cout << "Present Notify" << std::endl;
 	if (CurrentState == ECaptureState::Capture)
 	{
 		CurrentState = ECaptureState::Await;
+		std::cout << "Captured Frame was presented. Switching to Await" << std::endl;
 	}
 
 	if(CurrentState == ECaptureState::WaitingForPresent)
 	{
 		CurrentState = ECaptureState::Capture;
+		std::cout << "Switching to Capture State" << std::endl;
 	}
+
+	drawCallNumber = 0;
+	vsBufferNumber = 0;
+	psBufferNumber = 0;
+}
+
+int DumpVSConstBuffer(ID3D11Device* Device, ID3D11DeviceContext *DevC, ID3D11Buffer * const * ppConstBuffer)
+{
+	if (!ppConstBuffer) return 1;
+
+	ID3D11Buffer* pBuffer = *ppConstBuffer;
+
+	/// CREATE CPUSIDE BUFFER
+	D3D11_BUFFER_DESC ciBuf;
+	ID3D11Buffer *cpuIB;
+
+	pBuffer->GetDesc(&ciBuf);
+
+	D3D11_BUFFER_DESC i_buffer_desc;
+	i_buffer_desc.Usage = D3D11_USAGE::D3D11_USAGE_STAGING;
+	i_buffer_desc.BindFlags = 0;
+	i_buffer_desc.ByteWidth = ciBuf.ByteWidth;
+	i_buffer_desc.CPUAccessFlags = D3D11_CPU_ACCESS_FLAG::D3D11_CPU_ACCESS_READ;
+	i_buffer_desc.MiscFlags = 0;
+	i_buffer_desc.StructureByteStride = ciBuf.StructureByteStride;
+
+	// CPU Array
+	char* cpuibarr = new char[ciBuf.ByteWidth];
+	ZeroMemory(cpuibarr, ciBuf.ByteWidth);
+
+	// Create D3D11 Subresource
+	D3D11_SUBRESOURCE_DATA ini_data;
+	ini_data.pSysMem = cpuibarr;
+	ini_data.SysMemPitch = 0;
+	ini_data.SysMemSlicePitch = 0;
+
+	// Create the buffer and copy from the actual buffer to the new one
+	Device->CreateBuffer(&i_buffer_desc, &ini_data, &cpuIB);
+	DevC->CopyResource(cpuIB, pBuffer);
+
+	// Use a mapped subresource to map the data to the CPU
+	D3D11_MAPPED_SUBRESOURCE ms;
+	HRESULT h = DevC->Map(cpuIB, 0, D3D11_MAP::D3D11_MAP_READ, NULL, &ms);
+
+	if (ms.pData)
+	{
+		// Data is valid. Save it
+		std::ofstream ibOut(std::to_string(drawCallNumber) + "." + direct + "." + std::to_string(vsBufferNumber) + ".vmrcb", std::ofstream::binary);
+
+		ibOut.write(reinterpret_cast<char *>(ms.pData), ciBuf.ByteWidth);
+	}
+	else return 1;
+
+	/// Unlock and release buffers
+	DevC->Unmap(cpuIB, NULL);
+	pBuffer->Release();
+	delete[] cpuibarr;
+	cpuIB->Release();
+	return 0;
 }
 
 D3D11CustomContext::D3D11CustomContext(ID3D11DeviceContext* devCon, ID3D11DeviceContext*** ret)
 {
 	m_devContext = devCon;
 	*ret = &m_devContext;
+	CurrentState = ECaptureState::Await;
 }
 
 D3D11CustomContext::D3D11CustomContext(ID3D11DeviceContext* devCon)
 {
 	m_devContext = devCon;
+	CurrentState = ECaptureState::Await;
 }
 
 D3D11CustomContext::D3D11CustomContext(ID3D11DeviceContext* dev, D3D11CustomDevice* cdev, D3D11Wrapper * Parent)
@@ -58,13 +144,23 @@ D3D11CustomContext::D3D11CustomContext(ID3D11DeviceContext* dev, D3D11CustomDevi
 	CustomDevice = cdev;
 	CustomDevice->Link(this);
 	ParentWrapper = Parent;
+	CurrentState = ECaptureState::Await;
 }
 
 void D3D11CustomContext::VSSetConstantBuffers(UINT StartSlot, UINT NumBuffers, ID3D11Buffer* const* ppConstantBuffers)
 {
-	// This sets the constant buffers. Dump them to disk.
-	// Do we need a serialisation object?
 
+#ifdef __DUMP_DATA__
+	if (CurrentState == ECaptureState::Capture)
+	{
+		std::cout << "Capturing Buffer" << std::endl;
+		//lock_guard<std::mutex> lock(vsBufferMutex);
+		ID3D11Device *dev;
+		GetDevice(&dev);
+		DumpVSConstBuffer(dev, m_devContext, ppConstantBuffers); // Don't use the abstract layer here
+	}
+#endif
+	++vsBufferNumber;
 	m_devContext->VSSetConstantBuffers(StartSlot, NumBuffers, ppConstantBuffers);
 }
 
@@ -686,24 +782,143 @@ void FCAPALL()
 	}
 }
 
+int SaveVBandIBFromDevice(ID3D11Device* Device, ID3D11DeviceContext* DevC)
+{
+	ID3D11Buffer *indexBuffer = nullptr;
+	DXGI_FORMAT indBufFormat;
+	UINT offset;
+	DevC->IAGetIndexBuffer(&indexBuffer, &indBufFormat, &offset);
+
+	if (!indexBuffer) return 1;
+
+	/// CREATE CPUSIDE BUFFER
+	D3D11_BUFFER_DESC ciBuf;
+	ID3D11Buffer *cpuIB;
+	indexBuffer->GetDesc(&ciBuf);
+
+	D3D11_BUFFER_DESC i_buffer_desc;
+	i_buffer_desc.Usage = D3D11_USAGE::D3D11_USAGE_STAGING;
+	i_buffer_desc.BindFlags = 0;
+	i_buffer_desc.ByteWidth = ciBuf.ByteWidth;
+	i_buffer_desc.CPUAccessFlags = D3D11_CPU_ACCESS_FLAG::D3D11_CPU_ACCESS_READ;
+	i_buffer_desc.MiscFlags = 0;
+	i_buffer_desc.StructureByteStride = ciBuf.StructureByteStride;
+
+	// CPU Array
+	char* cpuibarr = new char[ciBuf.ByteWidth];
+	ZeroMemory(cpuibarr, ciBuf.ByteWidth);
+
+	// Create D3D11 Subresource
+	D3D11_SUBRESOURCE_DATA ini_data;
+	ini_data.pSysMem = cpuibarr;
+	ini_data.SysMemPitch = 0;
+	ini_data.SysMemSlicePitch = 0;
+
+	// Create the buffer and copy from the actual buffer to the new one
+	Device->CreateBuffer(&i_buffer_desc, &ini_data, &cpuIB);
+	DevC->CopyResource(cpuIB, indexBuffer);
+
+	// Use a mapped subresource to map the data to the CPU
+	D3D11_MAPPED_SUBRESOURCE ms;
+	HRESULT h = DevC->Map(cpuIB, 0, D3D11_MAP::D3D11_MAP_READ, NULL, &ms);
+
+	if (ms.pData)
+	{
+		// Data is valid. Save it
+		std::ofstream ibOut(std::to_string(drawCallNumber) + "." + direct + ".vmrib", std::ofstream::binary);
+
+		ibOut.write(reinterpret_cast<char *>(ms.pData), ciBuf.ByteWidth);
+	}
+	else return 1;
+	
+	/// Unlock and release buffers
+	DevC->Unmap(cpuIB, NULL);
+	indexBuffer->Release();
+	cpuIB->Release();
+	delete[] cpuibarr;
+
+
+	/// Continue and do the vertex buffer
+	ID3D11Buffer *vBufs;
+	UINT Stride;
+	UINT Offset;
+	DevC->IAGetVertexBuffers(0, 1, &vBufs, &Stride, &Offset);
+
+	if (!vBufs) return 1;
+
+	/// CREATE CPUSIDE BUFFER
+	vBufs->GetDesc(&ciBuf);
+
+	i_buffer_desc.Usage = D3D11_USAGE::D3D11_USAGE_STAGING;
+	i_buffer_desc.BindFlags = 0;
+	i_buffer_desc.ByteWidth = ciBuf.ByteWidth;
+	i_buffer_desc.CPUAccessFlags = D3D11_CPU_ACCESS_FLAG::D3D11_CPU_ACCESS_READ | D3D11_CPU_ACCESS_WRITE;
+	i_buffer_desc.MiscFlags = 0;
+	i_buffer_desc.StructureByteStride = ciBuf.StructureByteStride;
+
+	char* ciarr = new char[ciBuf.ByteWidth];
+	ZeroMemory(ciarr, ciBuf.ByteWidth);
+
+	ini_data.pSysMem = ciarr;
+	ini_data.SysMemPitch = 0;
+	ini_data.SysMemSlicePitch = 0;
+
+	Device->CreateBuffer(&i_buffer_desc, &ini_data, &cpuIB);
+	DevC->CopyResource(cpuIB, vBufs);
+	DevC->Map(cpuIB, NULL, D3D11_MAP_READ, NULL, &ms);
+
+	if (ms.pData)
+	{
+		std::ofstream vbOut(std::to_string(drawCallNumber) + "." + direct + ".vmrvb", std::ofstream::binary);
+
+		vbOut.write(reinterpret_cast<char *>(ms.pData), ciBuf.ByteWidth);
+	}
+	else return 1;
+
+
+	DevC->Unmap(cpuIB, NULL);
+	vBufs->Release();
+	cpuIB->Release();
+	delete[] ciarr;
+	return 0;
+}
+
 void D3D11CustomContext::DrawIndexed(UINT IndexCount, UINT StartIndexLocation, INT BaseVertexLocation)
 {
 	if (GetAsyncKeyState(VK_DOWN) & 0x8000 && CurrentState == ECaptureState::Await)
 	{
 		CurrentState = ECaptureState::WaitingForPresent;
+		std::cout << "Changing Process State from Await to AwaitPresent" << std::endl;
 	}
 
 	if (CurrentState == ECaptureState::Capture)
 	{
+		lock_guard<std::mutex> lock(drawCallMutex);
+#ifdef __DUMP_DATA__
+
+		direct = "DrawIndx";
+
+		ID3D11Device *dev;
+		GetDevice(&dev);
+
+		if(SaveVBandIBFromDevice(dev, m_devContext) == 1)
+		{
+			std::cout << "Error capturing buffers for Draw Call " << drawCallNumber << std::endl;
+		}
+#else
 		direct = "INDEXED";
 		bLookingForCapture = true;
 		ID3D11Device* dev;
 		this->GetDevice(&dev);
 
 		FCapMeshLogicIndexSegment(dev, this, StartIndexLocation, BaseVertexLocation, IndexCount);
+#endif
+		resetBufferCounters();
+		++drawCallNumber;
 	}
 
 	m_devContext->DrawIndexed(IndexCount, StartIndexLocation, BaseVertexLocation);
+
 }
 
 void D3D11CustomContext::Draw(UINT VertexCount, UINT StartVertexLocation)
@@ -715,14 +930,30 @@ void D3D11CustomContext::Draw(UINT VertexCount, UINT StartVertexLocation)
 
 	if (CurrentState == ECaptureState::Capture)
 	{
+		lock_guard<std::mutex> lock(drawCallMutex);
+#ifdef __DUMP_DATA__
+		direct = "Draw";
+
+		ID3D11Device *dev;
+		GetDevice(&dev);
+
+		if (SaveVBandIBFromDevice(dev, m_devContext) == 1)
+		{
+			std::cout << "Error capturing buffers for Draw Call " << drawCallNumber << std::endl;
+		}
+#else
 		direct = "DF";
 		bLookingForCapture = true;
 		ID3D11Device* dev;
 		this->GetDevice(&dev);
 
 		FCapMeshLogicVertexOnlySegment(dev, this, StartVertexLocation, VertexCount);
+#endif
+		resetBufferCounters();
+		++drawCallNumber;
 	}
 	m_devContext->Draw(VertexCount, StartVertexLocation);
+
 }
 
 HRESULT D3D11CustomContext::Map(ID3D11Resource* pResource, UINT Subresource, D3D11_MAP MapType, UINT MapFlags, D3D11_MAPPED_SUBRESOURCE* pMappedResource)
@@ -760,16 +991,32 @@ void D3D11CustomContext::DrawIndexedInstanced(UINT IndexCountPerInstance, UINT I
 	if (GetAsyncKeyState(VK_DOWN) & 0x8000 && CurrentState == ECaptureState::Await)
 	{
 		CurrentState = ECaptureState::WaitingForPresent;
+		
 	}
 
 	if (CurrentState == ECaptureState::Capture)
 	{
+		lock_guard<std::mutex> lock(drawCallMutex);
+#ifdef __DUMP_DATA__
+		direct = "DrawIndxInst";
+
+		ID3D11Device *dev;
+		GetDevice(&dev);
+
+		if (SaveVBandIBFromDevice(dev, m_devContext) == 1)
+		{
+			std::cout << "Error capturing buffers for Draw Call " << drawCallNumber << std::endl;
+		}
+#else
 		direct = "InstINDEXED";
 		bLookingForCapture = true;
 		ID3D11Device* dev;
 		this->GetDevice(&dev);
 
 		FCapMeshLogicIndexSegment(dev, this, StartIndexLocation, BaseVertexLocation, IndexCountPerInstance);
+#endif
+		resetBufferCounters();
+		++drawCallNumber;
 	}
 	
 	m_devContext->DrawIndexedInstanced(IndexCountPerInstance, InstanceCount, StartIndexLocation, BaseVertexLocation, StartInstanceLocation);
@@ -777,6 +1024,34 @@ void D3D11CustomContext::DrawIndexedInstanced(UINT IndexCountPerInstance, UINT I
 
 void D3D11CustomContext::DrawInstanced(UINT VertexCountPerInstance, UINT InstanceCount, UINT StartVertexLocation, UINT StartInstanceLocation)
 {
+	if (GetAsyncKeyState(VK_DOWN) & 0x8000 && CurrentState == ECaptureState::Await)
+	{
+		CurrentState = ECaptureState::WaitingForPresent;
+	}
+
+	if (CurrentState == ECaptureState::Capture)
+	{
+		lock_guard<std::mutex> lock(drawCallMutex);
+#ifdef __DUMP_DATA__
+		direct = "DrawInst";
+
+		ID3D11Device *dev;
+		GetDevice(&dev);
+
+		if (SaveVBandIBFromDevice(dev, this) == 1)
+		{
+			std::cout << "Error capturing buffers for Draw Call " << drawCallNumber << std::endl;
+		}
+#else
+		direct = "Inst";
+		bLookingForCapture = true;
+		ID3D11Device* dev;
+		this->GetDevice(&dev);
+#endif
+		resetBufferCounters();
+		++drawCallNumber;
+	}
+
 	m_devContext->DrawInstanced(VertexCountPerInstance, InstanceCount, StartVertexLocation, StartInstanceLocation);
 }
 
@@ -863,17 +1138,23 @@ void D3D11CustomContext::SOSetTargets(UINT NumBuffers, ID3D11Buffer* const* ppSO
 void D3D11CustomContext::DrawAuto()
 {
 	std::cout << "Auto draw call..." << std::endl;
-	m_devContext->DrawAuto();
+	m_devContext->DrawAuto(); 
+	resetBufferCounters();
+	++drawCallNumber;
 }
 
 void D3D11CustomContext::DrawIndexedInstancedIndirect(ID3D11Buffer* pBufferForArgs, UINT AlignedByteOffsetForArgs)
 {
 	m_devContext->DrawIndexedInstancedIndirect(pBufferForArgs, AlignedByteOffsetForArgs);
+	resetBufferCounters();
+	++drawCallNumber;
 }
 
 void D3D11CustomContext::DrawInstancedIndirect(ID3D11Buffer* pBufferForArgs, UINT AlignedByteOffsetForArgs)
 {
 	m_devContext->DrawInstancedIndirect(pBufferForArgs, AlignedByteOffsetForArgs);
+	resetBufferCounters();
+	++drawCallNumber;
 }
 
 void D3D11CustomContext::Dispatch(UINT ThreadGroupCountX, UINT ThreadGroupCountY, UINT ThreadGroupCountZ)
