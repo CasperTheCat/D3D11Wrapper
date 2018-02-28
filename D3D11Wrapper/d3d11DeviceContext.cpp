@@ -9,7 +9,22 @@
 #include "utils.h"
 #include <mutex>
 
-#define __DUMP_DATA__ 1
+//#define __DUMP_DATA__ 1
+#define USING_NIER_AUTOMATA_VBI
+
+#ifdef USING_NIER_AUTOMATA_VBI
+/// Vertex Infomation
+struct NierAutomataVBI
+{
+	float x;
+	float y;
+	float z;
+	uint8_t uk1[4];
+	float u;
+	float v;
+	uint8_t uk2[4];
+};
+#endif
 
 int primsCapd = 0;
 int lastBufferByteWidth = 300;
@@ -391,11 +406,20 @@ void FCAPWriteMesh
 		objStream << "v " << verts[i].position.x * 0.1 << " " << verts[i].position.y * 0.1 << " " << verts[i].position.z * 0.1 << " 1" << std::endl;
 	}
 
+	for (i = 0; i < verts.size(); i++)
+	{
+		objStream << "vt " << verts[i].texcoord.x << " " << verts[i].texcoord.y << std::endl;
+	}
+
+
 	// Write all face data, using full desc
 	for (i = 0; i < indices.size() / 3; i++)
 	{
 		// f v/vt/vn v/vt/vn v/vt/vn
-		objStream << "f " << 1 + indices[i * 3] << " " << 1 + indices[i * 3 + 1] << " " << 1 + indices[i * 3 + 2] << std::endl;
+		objStream << "f " <<
+			1 + indices[i * 3] << "/" << 1 + indices[i * 3] << " " <<
+			1 + indices[i * 3 + 1] << "/" << 1 + indices[i * 3 + 1] << " " <<
+			1 + indices[i * 3 + 2] << "/" << 1 + indices[i * 3 + 2] << std::endl;
 	}
 
 	// Write all vert positions in VB order
@@ -573,11 +597,23 @@ void FCapMeshLogicMapSegment(ID3D11Device* Device, ID3D11DeviceContext *DevC, UI
 		if (it == indexMap.end()) {
 			indexMap.push_back(a);
 
+
+#ifdef USING_NIER_AUTOMATA_VBI
+			// Give Vertex Buffer a type
+			const auto ptr = reinterpret_cast<NierAutomataVBI *>((VertexBuffer));
+
+			// Read element a
+			const auto vert = &ptr[a];
+
+			vertices.emplace_back(Vec3f(vert->x, vert->y, vert->z), Vec2f(vert->u, vert->v));
+			indices.push_back((uint16_t)(indexMap.size() - 1));
+
+#else
 			void *vertexInfo = reinterpret_cast<void *>(reinterpret_cast<uint8_t *>(VertexBuffer) + Stride * a);
 			float x = ((float *)vertexInfo)[0];
 			float y = ((float *)vertexInfo)[1];
 			float z = ((float *)vertexInfo)[2];
-			//void *uv = (void *)((uint8_t *)vertexInfo + Stride - 2 * sizeof(float));
+			void *uv = (void *)((uint8_t *)vertexInfo + Stride - 2 * sizeof(float));
 			//float u = ((float *)uv)[0];
 			//float v = ((float *)uv)[1];
 			//dumpVB << x << " " << y << " " << z << std::endl;
@@ -585,6 +621,7 @@ void FCapMeshLogicMapSegment(ID3D11Device* Device, ID3D11DeviceContext *DevC, UI
 			//textureCoordList.push_back(Vec2f(u, v));
 			indices.push_back((uint16_t)(indexMap.size() - 1));
 			//dumpInfoB << "Addr " << a << " is now indexed as " << indexMap.size() - 1 << endl;
+#endif
 		}
 		else {
 			//dumpInfoB << "Addr " << a << " already in index at location " << std::distance(indexMap.begin(), it) << std::endl;
