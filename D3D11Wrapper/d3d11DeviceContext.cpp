@@ -9,7 +9,7 @@
 #include "utils.h"
 #include <mutex>
 
-//#define __DUMP_DATA__ 1
+#define __DUMP_DATA__ 1
 #define USING_NIER_AUTOMATA_VBI
 
 #ifdef USING_NIER_AUTOMATA_VBI
@@ -284,14 +284,17 @@ void D3D11CustomContext::VSSetConstantBuffers(UINT StartSlot, UINT NumBuffers, I
 #ifdef __DUMP_DATA__
 	if (CurrentState == ECaptureState::Capture)
 	{
-		std::cout << "Capturing Buffer" << std::endl;
+		std::cout << "Capturing " << NumBuffers << " Buffers" << std::endl;
 		//lock_guard<std::mutex> lock(vsBufferMutex);
 		ID3D11Device *dev;
 		GetDevice(&dev);
-		DumpVSConstBuffer(dev, m_devContext, ppConstantBuffers); // Don't use the abstract layer here
+		for (uint32_t i = 0; i < NumBuffers; ++i)
+		{
+			DumpVSConstBuffer(dev, m_devContext, ppConstantBuffers + (sizeof(ID3D11Buffer*) * i) ); // Don't use the abstract layer here
+		}
 	}
 #endif
-	++vsBufferNumber;
+	vsBufferNumber += NumBuffers;
 	m_devContext->VSSetConstantBuffers(StartSlot, NumBuffers, ppConstantBuffers);
 }
 
