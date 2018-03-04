@@ -9,10 +9,24 @@
 #include "utils.h"
 #include <mutex>
 
-#define __DUMP_DATA__ 1
-#define USING_NIER_AUTOMATA_VBI
 
-#ifdef USING_NIER_AUTOMATA_VBI
+#define __DUMP_ALL_BUFFERS__ 1
+#define __DUMP_DATA__ 1
+#define __EXPORT_MODELS__ 1
+
+#if defined(__DUMP_ALL_BUFFERS__) 
+uint32_t globalVSBufferCount = 0;
+std::unordered_set<void *> accountedBuffers;
+bool AllowCap = false;
+#endif
+
+
+#define USING_VB_STRUCT
+//#define USING_NIER_AUTOMATA_VBI
+#define USING_BDO_VBI
+
+#if defined(USING_VB_STRUCT)
+#if defined(USING_NIER_AUTOMATA_VBI)
 /// Vertex Infomation
 struct NierAutomataVBI
 {
@@ -24,6 +38,22 @@ struct NierAutomataVBI
 	float v;
 	uint8_t uk2[4];
 };
+typedef NierAutomataVBI VBStruct;
+#elif defined(USING_BDO_VBI)
+#define USING_HALF_PRECISION_UV
+struct BlackDesertOnlineVBI
+{
+	float x;
+	float y;
+	float z;
+	uint8_t padd[4];
+	uint16_t u;
+	uint16_t v;
+	uint8_t uk2[12];
+};
+typedef BlackDesertOnlineVBI VBStruct;
+#endif
+
 #endif
 
 int primsCapd = 0;
@@ -76,6 +106,12 @@ void D3D11CustomContext::Notify_Present()
 		CurrentState = ECaptureState::Await;
 		std::cout << "Captured Frame was presented. Switching to Await" << std::endl;
 		infoOutput.close();
+		
+	}
+
+	if (GetAsyncKeyState(VK_RIGHT) & 0x8000)
+	{
+		AllowCap = true;
 	}
 
 	if(CurrentState == ECaptureState::WaitingForPresent)
@@ -201,10 +237,17 @@ int D3D11CustomContext::SaveVBandIBFromDevice(ID3D11Device* Device, ID3D11Device
 int D3D11CustomContext::DumpVSConstBuffer(ID3D11Device* Device, ID3D11DeviceContext* DevC,
 	ID3D11Buffer* const* ppConstBuffer)
 {
+	return DumpVSConstBufferWithName(Device, DevC, ppConstBuffer, std::to_string(drawCallNumber) + "." + std::to_string(vsBufferNumber));
+}
+
+int D3D11CustomContext::DumpVSConstBufferWithName(ID3D11Device* Device, ID3D11DeviceContext* DevC,
+	ID3D11Buffer* const* ppConstBuffer, std::string name)
+{
 	if (!ppConstBuffer) return 1;
 
 	ID3D11Buffer* pBuffer = *ppConstBuffer;
 
+	if (!pBuffer) return 1;
 	/// CREATE CPUSIDE BUFFER
 	D3D11_BUFFER_DESC ciBuf;
 	ID3D11Buffer *cpuIB;
@@ -242,7 +285,7 @@ int D3D11CustomContext::DumpVSConstBuffer(ID3D11Device* Device, ID3D11DeviceCont
 	if (ms.pData)
 	{
 		// Data is valid. Save it
-		std::ofstream ibOut(std::to_string(drawCallNumber) + "." + std::to_string(vsBufferNumber) + ".vmrcb", std::ofstream::binary);
+		std::ofstream ibOut(name + ".vmrcb", std::ofstream::binary);
 
 		ibOut.write(reinterpret_cast<char *>(ms.pData), ciBuf.ByteWidth);
 	}
@@ -281,19 +324,46 @@ D3D11CustomContext::D3D11CustomContext(ID3D11DeviceContext* dev, D3D11CustomDevi
 void D3D11CustomContext::VSSetConstantBuffers(UINT StartSlot, UINT NumBuffers, ID3D11Buffer* const* ppConstantBuffers)
 {
 
+#ifdef __DUMP_ALL_BUFFERS__
+#ifdef __DUMP_DATA__
+	ID3D11Device *dev;
+	GetDevice(&dev);
+#endif
+#endif
+
 #ifdef __DUMP_DATA__
 	if (CurrentState == ECaptureState::Capture)
 	{
 		std::cout << "Capturing " << NumBuffers << " Buffers" << std::endl;
 		//lock_guard<std::mutex> lock(vsBufferMutex);
+#ifndef __DUMP_ALL_BUFFERS__
 		ID3D11Device *dev;
 		GetDevice(&dev);
+#endif
 		for (uint32_t i = 0; i < NumBuffers; ++i)
 		{
 			DumpVSConstBuffer(dev, m_devContext, ppConstantBuffers + (sizeof(ID3D11Buffer*) * i) ); // Don't use the abstract layer here
 		}
 	}
 #endif
+
+#ifdef __DUMP_ALL_BUFFERS__
+	// Register the buffer point. I release this is fundamentally flawed because pointers can be reused
+	for (uint32_t i = 0; i < 1;/* NumBuffers;*/ ++i)
+	{
+		std::cout << "Catching Prebind: " << globalVSBufferCount++ << std::endl;
+		// Find if there
+		//if (accountedBuffers.find(*ppConstantBuffers + (sizeof(ID3D11Buffer*) * i)) == accountedBuffers.end())
+		if(AllowCap && globalVSBufferCount > 100)
+		{
+			// Isn't there, add it and rip it
+			//accountedBuffers.emplace(*(ppConstantBuffers + (sizeof(ID3D11Buffer*) * i)));
+			DumpVSConstBufferWithName(dev, m_devContext, ppConstantBuffers + (sizeof(ID3D11Buffer*) * i), "Prebinds/" + std::to_string(i) + "." + std::to_string(globalVSBufferCount)); // Don't use the abstract layer here
+		}
+	}
+#endif
+
+
 	vsBufferNumber += NumBuffers;
 	m_devContext->VSSetConstantBuffers(StartSlot, NumBuffers, ppConstantBuffers);
 }
@@ -601,14 +671,26 @@ void FCapMeshLogicMapSegment(ID3D11Device* Device, ID3D11DeviceContext *DevC, UI
 			indexMap.push_back(a);
 
 
-#ifdef USING_NIER_AUTOMATA_VBI
+#ifdef USING_VB_STRUCT
 			// Give Vertex Buffer a type
-			const auto ptr = reinterpret_cast<NierAutomataVBI *>((VertexBuffer));
+			const auto ptr = reinterpret_cast<VBStruct *>((VertexBuffer));
 
 			// Read element a
 			const auto vert = &ptr[a];
 
-			vertices.emplace_back(Vec3f(vert->x, vert->y, vert->z), Vec2f(vert->u, vert->v));
+			float u;
+			float v;
+#ifdef USING_HALF_PRECISION_UV
+			// Conv u
+			u = HalfFloatToFloat(vert->u);
+			v = HalfFloatToFloat(vert->v);
+#else
+			u= vert->u;
+			v= vert->v;
+#endif
+
+			
+			vertices.emplace_back(Vec3f(vert->x, vert->y, vert->z), Vec2f(u,v));
 			indices.push_back((uint16_t)(indexMap.size() - 1));
 
 #else
@@ -949,23 +1031,17 @@ void D3D11CustomContext::DrawIndexed(UINT IndexCount, UINT StartIndexLocation, I
 	if (CurrentState == ECaptureState::Capture)
 	{
 		lock_guard<std::mutex> lock(drawCallMutex);
-#ifdef __DUMP_DATA__
-
 		direct = "DrawIndx";
 
 		ID3D11Device *dev;
 		GetDevice(&dev);
-
+#ifdef __DUMP_DATA__
 		if(SaveVBandIBFromDevice(dev, m_devContext) == 1)
 		{
 			std::cout << "Error capturing buffers for Draw Call " << drawCallNumber << std::endl;
 		}
-#else
-		direct = "INDEXED";
-		bLookingForCapture = true;
-		ID3D11Device* dev;
-		this->GetDevice(&dev);
-
+#endif
+#ifdef __EXPORT_MODELS__
 		FCapMeshLogicIndexSegment(dev, this, StartIndexLocation, BaseVertexLocation, IndexCount);
 #endif
 		resetBufferCounters();
@@ -991,22 +1067,19 @@ void D3D11CustomContext::Draw(UINT VertexCount, UINT StartVertexLocation)
 	if (CurrentState == ECaptureState::Capture)
 	{
 		lock_guard<std::mutex> lock(drawCallMutex);
-#ifdef __DUMP_DATA__
 		direct = "Draw";
 
 		ID3D11Device *dev;
 		GetDevice(&dev);
+#ifdef __DUMP_DATA__
+
 
 		if (SaveVBandIBFromDevice(dev, m_devContext) == 1)
 		{
 			std::cout << "Error capturing buffers for Draw Call " << drawCallNumber << std::endl;
 		}
-#else
-		direct = "DF";
-		bLookingForCapture = true;
-		ID3D11Device* dev;
-		this->GetDevice(&dev);
-
+#endif
+#ifdef __EXPORT_MODELS__
 		FCapMeshLogicVertexOnlySegment(dev, this, StartVertexLocation, VertexCount);
 #endif
 		resetBufferCounters();
@@ -1062,22 +1135,19 @@ void D3D11CustomContext::DrawIndexedInstanced(UINT IndexCountPerInstance, UINT I
 	if (CurrentState == ECaptureState::Capture)
 	{
 		lock_guard<std::mutex> lock(drawCallMutex);
-#ifdef __DUMP_DATA__
 		direct = "DrawIndxInst";
 
 		ID3D11Device *dev;
 		GetDevice(&dev);
+#ifdef __DUMP_DATA__
+
 
 		if (SaveVBandIBFromDevice(dev, m_devContext) == 1)
 		{
 			std::cout << "Error capturing buffers for Draw Call " << drawCallNumber << std::endl;
 		}
-#else
-		direct = "InstINDEXED";
-		bLookingForCapture = true;
-		ID3D11Device* dev;
-		this->GetDevice(&dev);
-
+#endif
+#ifdef __EXPORT_MODELS__
 		FCapMeshLogicIndexSegment(dev, this, StartIndexLocation, BaseVertexLocation, IndexCountPerInstance);
 #endif
 		resetBufferCounters();
@@ -1102,21 +1172,18 @@ void D3D11CustomContext::DrawInstanced(UINT VertexCountPerInstance, UINT Instanc
 	if (CurrentState == ECaptureState::Capture)
 	{
 		lock_guard<std::mutex> lock(drawCallMutex);
-#ifdef __DUMP_DATA__
-		direct = "DrawInst";
-
 		ID3D11Device *dev;
 		GetDevice(&dev);
+		direct = "DrawInst";
+#ifdef __DUMP_DATA__
 
 		if (SaveVBandIBFromDevice(dev, this) == 1)
 		{
 			std::cout << "Error capturing buffers for Draw Call " << drawCallNumber << std::endl;
 		}
-#else
-		direct = "Inst";
-		bLookingForCapture = true;
-		ID3D11Device* dev;
-		this->GetDevice(&dev);
+#endif
+#ifdef __EXPORT_MODELS__
+
 #endif
 		resetBufferCounters();
 		++drawCallNumber;
