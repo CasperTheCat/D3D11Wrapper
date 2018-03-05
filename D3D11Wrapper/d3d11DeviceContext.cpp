@@ -10,7 +10,7 @@
 #include <mutex>
 
 
-#define __DUMP_ALL_BUFFERS__ 1
+//#define __DUMP_ALL_BUFFERS__ 1
 #define __DUMP_DATA__ 1
 #define __EXPORT_MODELS__ 1
 
@@ -109,10 +109,12 @@ void D3D11CustomContext::Notify_Present()
 		
 	}
 
+#ifdef __DUMP_ALL_BUFFERS__
 	if (GetAsyncKeyState(VK_RIGHT) & 0x8000)
 	{
 		AllowCap = true;
 	}
+#endif
 
 	if(CurrentState == ECaptureState::WaitingForPresent)
 	{

@@ -117,10 +117,10 @@ HRESULT D3D11CustomDevice::CreateBuffer(const D3D11_BUFFER_DESC* pDesc, const D3
 	// SIZE DEPENDANT
 	///
 	++nBuffersSeen;
-	if(pDesc->ByteWidth > (1024 * 8))
+	if(pDesc->ByteWidth > (1024 * 8) && pDesc->BindFlags & D3D11_BIND_CONSTANT_BUFFER)
 	{
 		std::ofstream bcOut(std::to_string(nBuffersCaptured++) + "." + std::to_string(nBuffersSeen) + ".vmrbc", std::ofstream::binary);
-		bcOut.write(pInitialData, pDesc->ByteWidth);
+		bcOut.write(reinterpret_cast<char *>(const_cast<D3D11_SUBRESOURCE_DATA *>(pInitialData)), pDesc->ByteWidth);
 	}
 
 	return m_d3dDevice->CreateBuffer(pDesc, pInitialData, ppBuffer);
@@ -172,7 +172,7 @@ HRESULT D3D11CustomDevice::CreateVertexShader(const void* pShaderBytecode, SIZE_
 	// 2018.03.05 - Write out the buffer
 	////
 	std::ofstream VSSWrite(std::to_string(nCapturedVSShaders++) + ".VSS", std::ofstream::binary);
-	VSS.write(reinterpret_cast<char*>(const_cast<void*>(pShaderBytecode)), BytecodeLength);
+	VSSWrite.write(reinterpret_cast<char*>(const_cast<void*>(pShaderBytecode)), BytecodeLength);
 	return m_d3dDevice->CreateVertexShader(pShaderBytecode, BytecodeLength, pClassLinkage, ppVertexShader);
 }
 
@@ -321,8 +321,8 @@ void D3D11CustomDevice::GetImmediateContext(ID3D11DeviceContext** ppImmediateCon
 	///////
 	// 2018.03.05 - Returning wrapped context
 	////
-	if(devCon) return devCon;
-	return m_d3dDevice.GetImmediateContext(ppImmediateContext);
+	if (CustomContext) *ppImmediateContext = CustomContext;
+	else m_d3dDevice->GetImmediateContext(ppImmediateContext);
 }
 
 HRESULT D3D11CustomDevice::SetExceptionMode(UINT RaiseFlags)
