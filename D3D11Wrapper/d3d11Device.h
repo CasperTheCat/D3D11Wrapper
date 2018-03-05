@@ -24,6 +24,7 @@ public:
 	UINT uSize;
 	bool bIsIndex;
 	bool bHasVertex;
+
 };
 
 class D3D11CustomDevice : public ID3D11Device
@@ -31,6 +32,14 @@ class D3D11CustomDevice : public ID3D11Device
 protected:
 	ID3D11Device *m_d3dDevice;
 	class D3D11CustomContext * CustomContext;
+	
+	uint32_t nCapturedVSShaders;
+	uint32_t nCapturedFSShaders;
+	uint32_t nBuffersCaptured;
+	uint32_t nBuffersSeen;
+
+protected:
+	void PostInitialise();
 
 public:
 	virtual ~D3D11CustomDevice() = default;

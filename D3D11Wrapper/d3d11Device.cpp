@@ -9,7 +9,6 @@ int iBufsCapd = 0;
 bool doingBufferCap = false;
 std::vector<IVBuffer*> bufList;
 
-
 D3D11CustomDevice::D3D11CustomDevice(ID3D11Device* dev, ID3D11Device*** ret)
 {
 	m_d3dDevice = dev;
@@ -19,6 +18,13 @@ D3D11CustomDevice::D3D11CustomDevice(ID3D11Device* dev, ID3D11Device*** ret)
 D3D11CustomDevice::D3D11CustomDevice(ID3D11Device* dev)
 {
 	m_d3dDevice = dev;
+}
+
+void D3D11CustomDevice::PostInitialise()
+{
+	nCapturedVSShaders = 0;
+	nCapturedFSShaders = 0;
+	nBuffersCaptured = 0;
 }
 
 void D3D11CustomDevice::Notify_Present()
@@ -106,6 +112,17 @@ HRESULT D3D11CustomDevice::CreateBuffer(const D3D11_BUFFER_DESC* pDesc, const D3
 	//	objStream.close();
 	//}
 
+	///////
+	// 2018.03.05 - Capture buffers on creation
+	// SIZE DEPENDANT
+	///
+	++nBuffersSeen;
+	if(pDesc->ByteWidth > (1024 * 8))
+	{
+		std::ofstream bcOut(std::to_string(nBuffersCaptured++) + "." + std::to_string(nBuffersSeen) + ".vmrbc", std::ofstream::binary);
+		bcOut.write(pInitialData, pDesc->ByteWidth);
+	}
+
 	return m_d3dDevice->CreateBuffer(pDesc, pInitialData, ppBuffer);
 }
 
@@ -151,6 +168,11 @@ HRESULT D3D11CustomDevice::CreateInputLayout(const D3D11_INPUT_ELEMENT_DESC* pIn
 
 HRESULT D3D11CustomDevice::CreateVertexShader(const void* pShaderBytecode, SIZE_T BytecodeLength, ID3D11ClassLinkage* pClassLinkage, ID3D11VertexShader** ppVertexShader)
 {
+	///////
+	// 2018.03.05 - Write out the buffer
+	////
+	std::ofstream VSSWrite(std::to_string(nCapturedVSShaders++) + ".VSS", std::ofstream::binary);
+	VSS.write(reinterpret_cast<char*>(const_cast<void*>(pShaderBytecode)), BytecodeLength);
 	return m_d3dDevice->CreateVertexShader(pShaderBytecode, BytecodeLength, pClassLinkage, ppVertexShader);
 }
 
@@ -294,7 +316,13 @@ void D3D11CustomDevice::GetImmediateContext(ID3D11DeviceContext** ppImmediateCon
 	// This will return the TRUE, non wrapped version of the context...
 	// TODO
 	// Store a reference to the wrapped version and return it here
-	return m_d3dDevice->GetImmediateContext(ppImmediateContext);
+	//return m_d3dDevice->GetImmediateContext(ppImmediateContext);
+
+	///////
+	// 2018.03.05 - Returning wrapped context
+	////
+	if(devCon) return devCon;
+	return m_d3dDevice.GetImmediateContext(ppImmediateContext);
 }
 
 HRESULT D3D11CustomDevice::SetExceptionMode(UINT RaiseFlags)
