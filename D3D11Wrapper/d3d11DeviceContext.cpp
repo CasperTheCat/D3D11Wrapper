@@ -10,78 +10,36 @@
 #include <mutex>
 
 
-//#define __DUMP_ALL_BUFFERS__ 1
-//#define __DUMP_DATA__ 1
-//#define __EXPORT_MODELS__ 1
-
-#if defined(__DUMP_ALL_BUFFERS__) 
-uint32_t globalVSBufferCount = 0;
-std::unordered_set<void *> accountedBuffers;
-bool AllowCap = false;
+#define PRINTDEBUG
+#ifdef PRINTDEBUG
+#define DEBUG_ONLY_PRINT(x) std::cout << x << std::endl
 #endif
 
-std::unordered_set<void *> pointerTable;
+
+std::unordered_map<void *, uint64_t> indexBufferTable;
+std::unordered_map<void *, uint64_t> vertexBufferTable;
 
 std::string DirectoryPrefix = "VMRDATA\\";
 
-#define USING_VB_STRUCT
-#define USING_NIER_AUTOMATA_VBI
-//#define USING_BDO_VBI
+uint64_t drawCallNumber = 0;
+uint64_t vsBufferNumber = 0;
+uint64_t indexBufferNumber = 0;
+uint64_t vertexBufferNumber = 0;
 
-#if defined(USING_VB_STRUCT)
-#if defined(USING_NIER_AUTOMATA_VBI)
-#define USING_HALF_PRECISION_UV
-/// Vertex Infomation
-struct NierAutomataVBI
-{
-	float x;
-	float y;
-	float z;
-	uint8_t tangent_unorm[4];
-	uint16_t u;
-	uint16_t v;
-	uint8_t blendIndices_uint[4];
-	uint8_t blendweight_unorm[4];
-};
-typedef NierAutomataVBI VBStruct;
-#elif defined(USING_BDO_VBI)
-#define USING_HALF_PRECISION_UV
-struct BlackDesertOnlineVBI
-{
-	float x;
-	float y;
-	float z;
-	uint8_t padd[4];
-	uint16_t u;
-	uint16_t v;
-	uint8_t uk2[12];
-};
-typedef BlackDesertOnlineVBI VBStruct;
-#endif
 
-#endif
-
-int primsCapd = 0;
-int lastBufferByteWidth = 300;
-bool bLookingForCapture = false;
 extern D3D11Wrapper *d3dw;
 extern bool doingBufferCap;
 extern std::vector<IVBuffer*> bufList;
+extern std::unordered_map<ID3D11InputLayout*, uint64_t> InputLayoutMap;
+extern std::unordered_map<ID3D11VertexShader*, uint64_t> VertexShaderMap;
 
-std::string direct;
-
-std::mutex vsBufferMutex;
-std::mutex psBufferMutex;
-std::mutex drawCallMutex;
-
-uint32_t drawCallNumber;
-uint32_t vsBufferNumber;
-uint32_t psBufferNumber;
-
-void resetBufferCounters()
+void resetPointerTable()
 {
+	drawCallNumber = 0;
 	vsBufferNumber = 0;
-	psBufferNumber = 0;
+	indexBufferTable.clear();
+	vertexBufferTable.clear();
+	return;
 }
 
 enum class FCAPSTATE : uint8_t
@@ -93,37 +51,20 @@ enum class FCAPSTATE : uint8_t
 	FCAP_TOTAL_STATES
 };
 
-enum class EDRAWSTATE : uint8_t
-{
-	DUMMY
-};
-
-//FCAPSTATE fcCaptureState = FCAPSTATE::FCAP_READY;
-
 void D3D11CustomContext::Notify_Present()
 {
-	drawCallNumber = 0;
-	vsBufferNumber = 0;
-	psBufferNumber = 0;
 	//std::cout << "Present Notify" << std::endl;
 	if (CurrentState == ECaptureState::Capture)
 	{
 		CurrentState = ECaptureState::Await;
 		std::cout << "Captured Frame was presented. Switching to Await" << std::endl;
 		infoOutput.close();
-		
 	}
 
-#ifdef __DUMP_ALL_BUFFERS__
-	if (GetAsyncKeyState(VK_RIGHT) & 0x8000)
-	{
-		AllowCap = true;
-	}
-#endif
-
-	if(CurrentState == ECaptureState::WaitingForPresent)
+	if (CurrentState == ECaptureState::WaitingForPresent)
 	{
 		CurrentState = ECaptureState::Capture;
+		resetPointerTable();
 		std::cout << "Switching to Capture State" << std::endl;
 		// Preemptively open a output stream
 		infoOutput = std::ofstream(DirectoryPrefix + std::to_string(drawCallNumber) + ".vmrinfo");
@@ -142,6 +83,18 @@ int D3D11CustomContext::SaveVBandIBFromDevice(ID3D11Device* Device, ID3D11Device
 
 	if (!indexBuffer) return 1;
 
+	// Check if the indexBufferTable, if things exist exist
+	{
+		const auto location = indexBufferTable.find(indexBuffer);
+		if (location == indexBufferTable.end())
+			indexBufferTable.emplace(std::make_pair(indexBuffer, indexBufferNumber));
+		else
+		{
+			infoOutput << "IndexRedirect," << 0 << "," << 0 << "," << 0 << "," << 0 << "," << 0 << ",0," << location->second << std::endl;
+			return 1;
+		}
+	}
+
 	/// CREATE CPUSIDE BUFFER
 	D3D11_BUFFER_DESC ciBuf;
 	ID3D11Buffer *cpuIB;
@@ -156,7 +109,7 @@ int D3D11CustomContext::SaveVBandIBFromDevice(ID3D11Device* Device, ID3D11Device
 	i_buffer_desc.StructureByteStride = ciBuf.StructureByteStride;
 
 	// Output index buffer infomation
-	infoOutput << "Index," << ciBuf.ByteWidth << "," << ciBuf.StructureByteStride << "," << ciBuf.BindFlags << "," << ciBuf.Usage << "," << offset1 << ",0" << std::endl;
+	infoOutput << "Index," << ciBuf.ByteWidth << "," << ciBuf.StructureByteStride << "," << ciBuf.BindFlags << "," << ciBuf.Usage << "," << offset1 << ",0," << indexBufferNumber << std::endl;
 
 	// CPU Array
 	char* cpuibarr = new char[ciBuf.ByteWidth];
@@ -179,8 +132,9 @@ int D3D11CustomContext::SaveVBandIBFromDevice(ID3D11Device* Device, ID3D11Device
 	if (ms.pData)
 	{
 		// Data is valid. Save it
-		std::ofstream ibOut(DirectoryPrefix + std::to_string(drawCallNumber) + "." + direct + ".vmrib", std::ofstream::binary);
+		std::ofstream ibOut(DirectoryPrefix + std::to_string(indexBufferNumber) + ".vmrib", std::ofstream::binary);
 		ibOut.write(reinterpret_cast<char *>(ms.pData), ciBuf.ByteWidth);
+		++indexBufferNumber;
 	}
 	else return 1;
 
@@ -199,6 +153,17 @@ int D3D11CustomContext::SaveVBandIBFromDevice(ID3D11Device* Device, ID3D11Device
 
 	if (!vBufs) return 1;
 
+	{
+		const auto location = vertexBufferTable.find(vBufs);
+		if (location == vertexBufferTable.end())
+			vertexBufferTable.emplace(std::make_pair(vBufs, vertexBufferNumber));
+		else
+		{
+			infoOutput << "VertexRedirect," << 0 << "," << 0 << "," << 0 << "," << 0 << "," << 0 << ",0," << location->second << std::endl;
+			return 1;
+		}
+	}
+
 	/// CREATE CPUSIDE BUFFER
 	vBufs->GetDesc(&ciBuf);
 
@@ -209,7 +174,7 @@ int D3D11CustomContext::SaveVBandIBFromDevice(ID3D11Device* Device, ID3D11Device
 	i_buffer_desc.MiscFlags = 0;
 	i_buffer_desc.StructureByteStride = ciBuf.StructureByteStride;
 
-	infoOutput << "Vertex," << ciBuf.ByteWidth << "," << ciBuf.StructureByteStride << "," << ciBuf.BindFlags << "," << ciBuf.Usage << "," << Offset << "," << Stride << std::endl;
+	infoOutput << "Vertex," << ciBuf.ByteWidth << "," << ciBuf.StructureByteStride << "," << ciBuf.BindFlags << "," << ciBuf.Usage << "," << Offset << "," << Stride << "," << vertexBufferNumber << std::endl;
 
 	char* ciarr = new char[ciBuf.ByteWidth];
 	ZeroMemory(ciarr, ciBuf.ByteWidth);
@@ -224,9 +189,10 @@ int D3D11CustomContext::SaveVBandIBFromDevice(ID3D11Device* Device, ID3D11Device
 
 	if (ms.pData)
 	{
-		std::ofstream vbOut(DirectoryPrefix + std::to_string(drawCallNumber) + "." + direct + ".vmrvb", std::ofstream::binary);
+		std::ofstream vbOut(DirectoryPrefix + std::to_string(vertexBufferNumber) + ".vmrvb", std::ofstream::binary);
 
 		vbOut.write(reinterpret_cast<char *>(ms.pData), ciBuf.ByteWidth);
+		++vertexBufferNumber;
 	}
 	else return 1;
 
@@ -242,24 +208,30 @@ int D3D11CustomContext::SaveVBandIBFromDevice(ID3D11Device* Device, ID3D11Device
 }
 
 int D3D11CustomContext::DumpVSConstBuffer(ID3D11Device* Device, ID3D11DeviceContext* DevC,
-	ID3D11Buffer* const* ppConstBuffer)
+	ID3D11Buffer* const * ppConstBuffer)
 {
 	return DumpVSConstBufferWithName(Device, DevC, ppConstBuffer, std::to_string(drawCallNumber) + "." + std::to_string(vsBufferNumber));
 }
 
 int D3D11CustomContext::DumpVSConstBufferWithName(ID3D11Device* Device, ID3D11DeviceContext* DevC,
-	ID3D11Buffer* const* ppConstBuffer, std::string name)
+	ID3D11Buffer* const * ppConstBuffer, std::string name)
 {
 	if (!ppConstBuffer) return 1;
 
-	ID3D11Buffer* pBuffer = *ppConstBuffer;
+	DEBUG_ONLY_PRINT("ppBuffer is Valid");
 
+	ID3D11Buffer* pBuffer = *ppConstBuffer;
 	if (!pBuffer) return 1;
+
+	DEBUG_ONLY_PRINT("pBuffer is Valid");
+
 	/// CREATE CPUSIDE BUFFER
 	D3D11_BUFFER_DESC ciBuf;
 	ID3D11Buffer *cpuIB;
 
 	pBuffer->GetDesc(&ciBuf);
+
+	DEBUG_ONLY_PRINT("Got Buffer Description");
 
 	D3D11_BUFFER_DESC i_buffer_desc;
 	i_buffer_desc.Usage = D3D11_USAGE::D3D11_USAGE_STAGING;
@@ -269,11 +241,15 @@ int D3D11CustomContext::DumpVSConstBufferWithName(ID3D11Device* Device, ID3D11De
 	i_buffer_desc.MiscFlags = 0;
 	i_buffer_desc.StructureByteStride = ciBuf.StructureByteStride;
 
+	DEBUG_ONLY_PRINT("Created CPU side buffer");
+
 	infoOutput << "Const," << ciBuf.ByteWidth << "," << ciBuf.StructureByteStride << "," << ciBuf.BindFlags << "," << ciBuf.Usage << ",0,0" << std::endl;
 
 	// CPU Array
 	char* cpuibarr = new char[ciBuf.ByteWidth];
 	ZeroMemory(cpuibarr, ciBuf.ByteWidth);
+
+	DEBUG_ONLY_PRINT("Allocated Arrays for data transfer");
 
 	// Create D3D11 Subresource
 	D3D11_SUBRESOURCE_DATA ini_data;
@@ -306,6 +282,24 @@ int D3D11CustomContext::DumpVSConstBufferWithName(ID3D11Device* Device, ID3D11De
 	return 0;
 }
 
+void D3D11CustomContext::CaptureDraw()
+{
+	if (CurrentState == ECaptureState::Capture)
+	{
+		ID3D11Device *dev;
+		GetDevice(&dev);
+
+		if (SaveVBandIBFromDevice(dev, m_devContext) == 1)
+		{
+			std::cout << "Error capturing buffers for Draw Call " << drawCallNumber << std::endl;
+		}
+
+		infoOutput.close();
+		infoOutput = std::ofstream(DirectoryPrefix + std::to_string(drawCallNumber+1) + ".vmrinfo");
+		infoOutput << "BufferType, BufferSize, BufferStride, BindFlags, Usage, BufferOffset, VertexInfoStride, Redirect" << std::endl;
+	}
+}
+
 D3D11CustomContext::D3D11CustomContext(ID3D11DeviceContext* devCon, ID3D11DeviceContext*** ret)
 {
 	m_devContext = devCon;
@@ -330,60 +324,25 @@ D3D11CustomContext::D3D11CustomContext(ID3D11DeviceContext* dev, D3D11CustomDevi
 
 void D3D11CustomContext::VSSetConstantBuffers(UINT StartSlot, UINT NumBuffers, ID3D11Buffer* const* ppConstantBuffers)
 {
-
-
-
-
-#ifdef __DUMP_ALL_BUFFERS__
-#ifdef __DUMP_DATA__
-	ID3D11Device *dev;
-	GetDevice(&dev);
-#endif
-#endif
-
-#if defined(__DUMP_DATA__) || 1
 	if (CurrentState == ECaptureState::Capture)
 	{
 		std::cout << "Capturing " << NumBuffers << " Buffers" << std::endl;
-		//lock_guard<std::mutex> lock(vsBufferMutex);
-#ifndef __DUMP_ALL_BUFFERS__
 		ID3D11Device *dev;
 		GetDevice(&dev);
-#endif
+
 		for (uint32_t i = 0; i < NumBuffers; ++i)
 		{
 			// SpecialCasing
-			if (NumBuffers == 14 && i == 11 && *(ppConstantBuffers + (sizeof(ID3D11Buffer*) * 11)) != nullptr)
+			if (NumBuffers == 14 && i == 11 && ppConstantBuffers[11] != nullptr)
 			{
-				std::cout << "AnimBinding is " << (vsBufferNumber + 11) << std::endl;
-				DumpVSConstBufferWithName(dev, m_devContext, ppConstantBuffers + (sizeof(ID3D11Buffer*) * 11), "AnimationData." + std::to_string(vsBufferNumber + 11));
+				std::cout << "AnimBinding is " << vsBufferNumber + i << std::endl;
+				DumpVSConstBufferWithName(dev, m_devContext, &ppConstantBuffers[i], "AnimationData." + std::to_string(vsBufferNumber + i));
 			}
-
-			/*if (*(ppConstantBuffers + (sizeof(ID3D11Buffer*) * i)))
-				DumpVSConstBuffer(dev, m_devContext, ppConstantBuffers + (sizeof(ID3D11Buffer*) * i)); // Don't use the abstract layer here
-			else
-				std::cout << "VSCDebug" << std::endl;*/
+			//else if (ppConstantBuffers[i])
+			//	DumpVSConstBuffer(dev, m_devContext, &ppConstantBuffers[i]); // Don't use the abstract layer here
 		}
 	}
-#endif
-
-#ifdef __DUMP_ALL_BUFFERS__
-	// Register the buffer point. I release this is fundamentally flawed because pointers can be reused
-	for (uint32_t i = 0; i < 1;/* NumBuffers;*/ ++i)
-	{
-		std::cout << "Catching Prebind: " << globalVSBufferCount++ << std::endl;
-		// Find if there
-		//if (accountedBuffers.find(*ppConstantBuffers + (sizeof(ID3D11Buffer*) * i)) == accountedBuffers.end())
-		if(AllowCap && globalVSBufferCount > 100)
-		{
-			// Isn't there, add it and rip it
-			//accountedBuffers.emplace(*(ppConstantBuffers + (sizeof(ID3D11Buffer*) * i)));
-			DumpVSConstBufferWithName(dev, m_devContext, ppConstantBuffers + (sizeof(ID3D11Buffer*) * i), "Prebinds/" + std::to_string(i) + "." + std::to_string(globalVSBufferCount)); // Don't use the abstract layer here
-		}
-	}
-#endif
-
-
+	
 	vsBufferNumber += NumBuffers;
 	m_devContext->VSSetConstantBuffers(StartSlot, NumBuffers, ppConstantBuffers);
 }
@@ -405,644 +364,15 @@ void D3D11CustomContext::PSSetSamplers(UINT StartSlot, UINT NumSamplers, ID3D11S
 
 void D3D11CustomContext::VSSetShader(ID3D11VertexShader* pVertexShader, ID3D11ClassInstance* const* ppClassInstances, UINT NumClassInstances)
 {
+	if (CurrentState == ECaptureState::Capture)
+	{
+		auto location = VertexShaderMap.find(pVertexShader);
+		if(location != VertexShaderMap.end())
+			infoOutput << "VSShader,0,0,0,0,0,0,"<< location->second << std::endl;
+	}
 	m_devContext->VSSetShader(pVertexShader, ppClassInstances, NumClassInstances);
 }
 
-#pragma region CaptureMesh
-
-////////
-std::string ResolveDirectory()
-{
-	HMODULE ModuleHandle = GetModuleHandle(nullptr);
-	if (!ModuleHandle) return "";
-	char fileName[1024];
-	GetModuleFileNameA(ModuleHandle, fileName, _MAX_PATH);
-
-	char driveName[_MAX_DRIVE + 1];
-	char directoryName[_MAX_DIR + 1];
-	::_splitpath_s(fileName,
-		driveName, _MAX_DRIVE,
-		directoryName, _MAX_DIR,
-		NULL, 0,
-		NULL, 0);
-	return (std::string(driveName) + std::string(directoryName));
-}
-
-//void FCAPWriteMesh
-//(
-//	std::vector<FCAPVertex> &verts,
-//	std::vector<FCAPFace> &faces
-//)
-//{
-//	// Write using OBJ export
-//	// Create output file stream
-//	ofstream objStream(g_Context->MeshDirectory + "dcall" + std::to_string(g_Context->PrimitivesCaptured) + ".obj");
-//	//objStream.setf(std::ios_base::fixed, std::ios_base::floatfield);
-//	objStream << fixed << showpoint;
-//	objStream << setprecision(8);
-//	uint32_t i;
-//
-//	// Write all vert positions in VB order
-//	for (i = 0; i < verts.size(); i++)
-//	{
-//		objStream << "v " << verts[i].position.x << " " << verts[i].position.y << " " << verts[i].position.z << " 1" << std::endl;
-//	}
-//
-//	//// Write all texcoords in VB order
-//	//for(i = 0; i < verts.size(); i++)
-//	//{
-//	//	objStream << "vt " << verts[i].texcoord.x << " " << verts[i].texcoord.y << std::endl;
-//	//}
-//
-//	// Write all face normals (three verts will use each value here) in IB order
-//	for (i = 0; i < faces.size(); i++)
-//	{
-//		objStream << "vn " << faces[i].normal.x << " " << faces[i].normal.y << " " << faces[i].normal.z << std::endl;
-//	}
-//
-//	// Write all face data, using full desc
-//	for (i = 0; i < faces.size(); i++)
-//	{
-//		// f v/vt/vn v/vt/vn v/vt/vn
-//		objStream << "f "
-//			// Vertex				Texcoord				Normal
-//			<< 1 + faces[i].v0 << "/" << /*faces[i].v0 <<*/ "/" << i << " "
-//			<< 1 + faces[i].v1 << "/" << /*faces[i].v1 <<*/ "/" << i << " "
-//			<< 1 + faces[i].v2 << "/" << /*faces[i].v2 <<*/ "/" << i << std::endl;
-//	}
-//
-//
-//
-//	objStream.close();
-//	//g_Context->PrimitivesCaptured
-//
-//
-
-
-
-void FCAPWriteMesh
-(
-	std::vector<FCAPVertex> &verts,
-	std::vector<UINT> &indices
-)
-{
-	// Write using OBJ export
-	std::ofstream objStream(DirectoryPrefix + direct + "dcall" + std::to_string(primsCapd++) + ".obj");
-
-	//objStream.setf(std::ios_base::fixed, std::ios_base::floatfield);
-	objStream << std::fixed << std::showpoint;
-	objStream << std::setprecision(8);
-	uint32_t i;
-
-
-	// Write all vert positions in VB order
-	for (i = 0; i < verts.size(); i++)
-	{
-		objStream << "v " << verts[i].position.x * 0.1 << " " << verts[i].position.y * 0.1 << " " << verts[i].position.z * 0.1 << " 1" << std::endl;
-	}
-
-	for (i = 0; i < verts.size(); i++)
-	{
-		objStream << "vt " << verts[i].texcoord.x << " " << verts[i].texcoord.y << std::endl;
-	}
-
-
-	// Write all face data, using full desc
-	for (i = 0; i < indices.size() / 3; i++)
-	{
-		// f v/vt/vn v/vt/vn v/vt/vn
-		objStream << "f " <<
-			1 + indices[i * 3] << "/" << 1 + indices[i * 3] << " " <<
-			1 + indices[i * 3 + 1] << "/" << 1 + indices[i * 3 + 1] << " " <<
-			1 + indices[i * 3 + 2] << "/" << 1 + indices[i * 3 + 2] << std::endl;
-	}
-
-	// Write all vert positions in VB order
-	//for (i = 0; i < verts.size(); i++)
-	//{
-	//	objStream << "v " << verts[i].position.x << " " << verts[i].position.y << " " << verts[i].position.z << " 1" << std::endl;
-	//}
-
-	//// Write all face data, using full desc
-	//for (i = 0; i < faces.size(); i++)
-	//{
-	//	// f v/vt/vn v/vt/vn v/vt/vn
-	//	objStream << "f "
-	//		// Vertex				Texcoord				Normal
-	//		<< faces[i].v0 << " "
-	//		<< faces[i].v1 << " "
-	//		<< faces[i].v2 << std::endl;
-	//}
-
-	objStream.close();
-	//g_Context->PrimitivesCaptured
-
-
-}
-
-//////////////////////////////////////////////////////////////////////////
-// PERFORMANCE CRITICAL
-// Capture Logic Mapping Segment
-//
-void FCapMeshLogicMapSegment(ID3D11Device* Device, ID3D11DeviceContext *DevC, UINT VertexIndexOffset, INT BaseVertexIndex, void *IndexBuffer, void *VertexBuffer, UINT Stride, UINT Offset, UINT IndexCount)
-{
-	// Maybe not the fastest this function could be, but good to get a ground truth first
-
-	// For OBJ export, we need vertex indices, vertex positions and vertex normals
-	// For this we need to work in faces not vertices
-
-	/*std::ofstream dumpVB("dump" + std::to_string(primsCapd) + ".vb");
-	std::ofstream dumpIB("dump" + std::to_string(primsCapd) + ".ib");
-	std::ofstream dumpInfoB("dump" + std::to_string(primsCapd) + ".info", std::ios_base::app);*/
-
-	// Predefinied Variables
-	std::vector<FCAPVertex> vertices;
-	//vertices.reserve(PrimitiveCount * 3);
-	//std::vector<FCAPFace> faces;
-	//faces.reserve(PrimitiveCount);
-	std::vector<UINT> indices;
-	//indices.reserve(PrimitiveCount * 3);
-	//faces.reserve(PrimitiveCount);
-
-	std::cout << "\rRipping object " << primsCapd << ", 0%\t\t\t\t";
-	//// Scoped Variables
-	////{
-	////	UINT vt0,vt1,vt2;
-	////	Vec3f normal, du, dv;
-	////	void *vert;
-	////	void *uv;
-	////	float x, y, z, u, v;
-	////	//FCAPVertex fcv0, fcv1, fcv2;
-	////	Vec3f vt0_vc3, vt1_vc3, vt2_vc3;
-	////	UINT vt0_idx, vt1_idx, vt2_idx;
-	////	// Buffer for index
-	////	std::vector<UINT>::iterator rmIter;
-	////	std::vector<UINT> indexMap;
-	////	//std::vector<UINT> indices;
-	////	/// Iterate over the index buffer creating face information and vertex normal for the face
-	////	for (UINT i = 0; i < PrimitiveCount; i++) // For all faces
-	////	{
-	////		/// Faces
-	////		// Get 3 vertices that make the face from Index Buffer
-	////		// These are locations in the vertices structure
-	////		vt0 = IndexBuffer[VertexIndexOffset + i * 3] + BaseVertexIndex + MinIndex;
-	////		rmIter = std::find(indexMap.begin(), indexMap.end(), vt0);
-	////		if(rmIter == indexMap.end())
-	////		{
-	////			// Add the element
-	////			indexMap.push_back(vt0);
-	////			vert = reinterpret_cast<void *>(reinterpret_cast<uint8_t *>(VertexBuffer) + Stride * vt0);
-	////			// Vert0 Data
-	////			x = static_cast<float *>(vert)[0];
-	////			y = static_cast<float *>(vert)[1];
-	////			z = static_cast<float *>(vert)[2];
-	////			uv = static_cast<void *>(static_cast<uint8_t *>(vert) + Stride - 2 * sizeof(float));
-	////			u = static_cast<float *>(uv)[0];
-	////			v = static_cast<float *>(uv)[1];
-	////			vt0_vc3 = Vec3f(x, y, z);
-	////			vertices.push_back(FCAPVertex(vt0_vc3, Vec2f(u, v)));
-	////			//indices.push_back(static_cast<UINT>(indexMap.size() - 1));
-	////			vt0_idx = static_cast<UINT>(indexMap.size() - 1);
-	////		}
-	////		else
-	////		{
-	////			vt0_idx = static_cast<UINT>(std::distance(indexMap.begin(), rmIter));
-	////			//indices.push_back(indexer);
-	////			vt0_vc3 = vertices[vt0_idx].position;
-	////		}
-	////		vt1 = IndexBuffer[VertexIndexOffset + 1 + i * 3] + BaseVertexIndex + MinIndex;
-	////		rmIter = std::find(indexMap.begin(), indexMap.end(), vt1);
-	////		if (rmIter == indexMap.end())
-	////		{
-	////			// Add the element
-	////			indexMap.push_back(vt1);
-	////			vert = reinterpret_cast<void *>(reinterpret_cast<uint8_t *>(VertexBuffer) + Stride * vt0);
-	////			// Vert0 Data
-	////			x = static_cast<float *>(vert)[0];
-	////			y = static_cast<float *>(vert)[1];
-	////			z = static_cast<float *>(vert)[2];
-	////			uv = static_cast<void *>(static_cast<uint8_t *>(vert) + Stride - 2 * sizeof(float));
-	////			u = static_cast<float *>(uv)[0];
-	////			v = static_cast<float *>(uv)[1];
-	////			vt1_vc3 = Vec3f(x, y, z);
-	////			vertices.push_back(FCAPVertex(vt1_vc3, Vec2f(u, v)));
-	////			//indices.push_back(static_cast<UINT>(indexMap.size() - 1));
-	////			vt1_idx = static_cast<UINT>(indexMap.size() - 1);
-	////		}
-	////		else
-	////		{
-	////			vt1_idx = static_cast<UINT>(std::distance(indexMap.begin(), rmIter));
-	////			vt1_vc3 = vertices[vt1_idx].position;
-	////		
-	////		vt2 = IndexBuffer[VertexIndexOffset + 2 + i * 3] + BaseVertexIndex + MinIndex;
-	////		rmIter = std::find(indexMap.begin(), indexMap.end(), vt2);
-	////		if (rmIter == indexMap.end())
-	////		{
-	////			// Add the element
-	////			indexMap.push_back(vt2);
-	////			vert = reinterpret_cast<void *>(reinterpret_cast<uint8_t *>(VertexBuffer) + Stride * vt0);
-	////			// Vert0 Data
-	////			x = static_cast<float *>(vert)[0];
-	////			y = static_cast<float *>(vert)[1];
-	////			z = static_cast<float *>(vert)[2];
-	////			uv = static_cast<void *>(static_cast<uint8_t *>(vert) + Stride - 2 * sizeof(float));
-	////			u = static_cast<float *>(uv)[0];
-	////			v = static_cast<float *>(uv)[1];
-	////			vt2_vc3 = Vec3f(x, y, z);
-	////			vertices.push_back(FCAPVertex(vt2_vc3, Vec2f(u, v)));
-	////			//indices.push_back(static_cast<UINT>(indexMap.size() - 1));
-	////			vt2_idx = static_cast<UINT>(indexMap.size() - 1);
-	////		}
-	////		else
-	////		{
-	////			vt2_idx = static_cast<UINT>(std::distance(indexMap.begin(), rmIter));
-	////			vt2_vc3 = vertices[vt2_idx].position;
-	////		
-	////		// Vertex Normal Calculation
-	////		// Normals //
-	////		// du = p1 - p0; //
-	////		// dv - p2 - p0; //
-	////		// n = du X dv // 
-	////		// where n is normalised //
-	////		du = vertices[vt1_idx].position - vertices[vt0_idx].position;
-	////		dv = vertices[vt2_idx].position - vertices[vt0_idx].position;
-	////		normal = Vec3f::Normalize(Vec3f::Cross(du, dv))
-	////		faces.push_back(FCAPFace(vt0_idx,vt1_idx,vt2_idx,normal));
-	////		dumpInfoB << vt0_idx << " " << vt1_idx << " " << vt2_idx << endl;
-	////	}
-	////}
-
-	//std::cout << "\rStride of " << Stride << std::endl;
-	//d3dw->Event << "Using Stride of " << Stride << std::endl;
-	//d3dw->Event << "Using BaseVertexIndex of " << BaseVertexIndex << std::endl;
-	//d3dw->Event << "VertexIndexOffset: " << VertexIndexOffset << std::endl;
-	//d3dw->Event << "Using Offset of " << Offset << std::endl;
-
-	if (Stride < (sizeof(float) * 3)) return;
-
-	std::vector<uint16_t> indexMap;
-	for (UINT i = 0; i < IndexCount; ++i) {
-		if((i % 10000) == 0) std::cout << "\r" << "Ripping object " << primsCapd << ", " << i / static_cast<float>(IndexCount + 1) << "%\t\t\t\t";
-		//d3dw->Event << "Adding to Map " << i << std::endl;
-		//d3dw->Event << std::hex << IndexBuffer << std::endl;
-		uint16_t a = reinterpret_cast<uint16_t*>(IndexBuffer)[VertexIndexOffset + i] + BaseVertexIndex;// +Offset;
-		//dumpIB << i << ": " << a << std::endl;
-		if (a == UINT32_MAX) continue; // Skip this invalid index
-		std::vector<uint16_t>::iterator it = std::find(indexMap.begin(), indexMap.end(), a);
-		if (it == indexMap.end()) {
-			indexMap.push_back(a);
-
-
-#ifdef USING_VB_STRUCT
-			// Give Vertex Buffer a type
-			const auto ptr = reinterpret_cast<VBStruct *>((VertexBuffer));
-
-			// Read element a
-			const auto vert = &ptr[a];
-
-			float u;
-			float v;
-#ifdef USING_HALF_PRECISION_UV
-			// Conv u
-			u = HalfFloatToFloat(vert->u);
-			v = HalfFloatToFloat(vert->v);
-#else
-			u= vert->u;
-			v= vert->v;
-#endif
-
-			
-			vertices.emplace_back(Vec3f(vert->x, vert->y, vert->z), Vec2f(u,v));
-			indices.push_back((uint16_t)(indexMap.size() - 1));
-
-#else
-			void *vertexInfo = reinterpret_cast<void *>(reinterpret_cast<uint8_t *>(VertexBuffer) + Stride * a);
-			float x = ((float *)vertexInfo)[0];
-			float y = ((float *)vertexInfo)[1];
-			float z = ((float *)vertexInfo)[2];
-			void *uv = (void *)((uint8_t *)vertexInfo + Stride - 2 * sizeof(float));
-			//float u = ((float *)uv)[0];
-			//float v = ((float *)uv)[1];
-			//dumpVB << x << " " << y << " " << z << std::endl;
-			vertices.push_back(FCAPVertex(Vec3f(x, y, z), Vec2f(0, 0)));
-			//textureCoordList.push_back(Vec2f(u, v));
-			indices.push_back((uint16_t)(indexMap.size() - 1));
-			//dumpInfoB << "Addr " << a << " is now indexed as " << indexMap.size() - 1 << endl;
-#endif
-		}
-		else {
-			//dumpInfoB << "Addr " << a << " already in index at location " << std::distance(indexMap.begin(), it) << std::endl;
-			indices.push_back((uint16_t)std::distance(indexMap.begin(), it));
-		}
-	}
-
-	// Write to file, pass of as
-	//FCAPWriteMesh(vertices, faces);
-	FCAPWriteMesh(vertices, indices);
-
-	//g_Context->Graphics.Device().get
-}
-
-//////////////////////////////////////////////////////////////////////////
-// PERFORMANCE CRITICAL
-// Capture Logic Vertex Segment
-//
-void FCapMeshLogicVertexOnlySegment(ID3D11Device* Device, ID3D11DeviceContext *DevC, UINT VertexIndexOffset, UINT VertexCount)
-{
-	return;
-	ID3D11Buffer *vBufs;
-	DXGI_FORMAT temp;
-	UINT Stride;
-	UINT Offset;
-	DevC->IAGetVertexBuffers(0, 1, &vBufs, &Stride, &Offset);
-
-	std::cout << "vBufs Valid: " << ((vBufs) ? "Yes" : "No") << std::endl;
-	if (!vBufs) return;
-
-	d3dw->Event << "vBufs Valid : " << ((vBufs) ? "Yes" : "No") << std::endl << "Stride: " << Stride << std::endl;
-
-	/// CREATE CPUSIDE BUFFER
-	D3D11_BUFFER_DESC ciBuf;
-	ID3D11Buffer *cpuIB;
-	vBufs->GetDesc(&ciBuf);
-
-
-
-	D3D11_BUFFER_DESC i_buffer_desc;
-	i_buffer_desc.Usage = D3D11_USAGE::D3D11_USAGE_STAGING;
-	i_buffer_desc.BindFlags = 0;
-	i_buffer_desc.ByteWidth = ciBuf.ByteWidth;
-	i_buffer_desc.CPUAccessFlags = D3D11_CPU_ACCESS_FLAG::D3D11_CPU_ACCESS_READ | D3D11_CPU_ACCESS_WRITE;
-	i_buffer_desc.MiscFlags = 0;
-	i_buffer_desc.StructureByteStride = ciBuf.StructureByteStride;
-
-	char* ciarr = new char[ciBuf.ByteWidth];
-	ZeroMemory(ciarr, ciBuf.ByteWidth);
-
-	D3D11_SUBRESOURCE_DATA ini_data;
-	ini_data.pSysMem = ciarr;
-	ini_data.SysMemPitch = 0;
-	ini_data.SysMemSlicePitch = 0;
-
-	Device->CreateBuffer(&i_buffer_desc, &ini_data, &cpuIB);
-
-	DevC->CopyResource(cpuIB, vBufs);
-
-
-
-	// foreach
-	D3D11_MAPPED_SUBRESOURCE ms;
-	DevC->Map(cpuIB, NULL, D3D11_MAP_READ, NULL, &ms);
-
-	if (!ms.pData)
-	{
-		std::cout << "vData is null" << std::endl;
-		return;
-	}
-
-	/// Continue down the rabbit hole
-	std::ofstream objStream("dcall" + std::to_string(primsCapd++) + ".obj");
-	std::ofstream testStream("format" + std::to_string(primsCapd) + ".fmt", std::ios::binary);
-	//objStream.setf(std::ios_base::fixed, std::ios_base::floatfield);
-	objStream << std::fixed << std::showpoint;
-	objStream << std::setprecision(8);
-	uint32_t i;
-
-	testStream.write((char*)ms.pData + VertexIndexOffset, Stride);
-	testStream.close();
-
-	for (i = 0; i < VertexCount; ++i)
-	{
-		void *vertexInfo = reinterpret_cast<void *>(reinterpret_cast<uint8_t *>(ms.pData) + (Stride * i) + VertexIndexOffset);
-		float x = ((float *)vertexInfo)[0];
-		float y = ((float *)vertexInfo)[1];
-		float z = ((float *)vertexInfo)[2];
-		//void *uv = (void *)((uint8_t *)vertexInfo + Stride - 2 * sizeof(float));
-		//float u = ((float *)uv)[0];
-		//float v = ((float *)uv)[1];
-		objStream << "v " << x << " " << y << " " << z << " 1" << std::endl;
-	}
-
-
-	for (i = 0; i < VertexCount; ++i)
-	{
-		objStream << "f " << i << " " << (i + 1) << " " << (i + 2) << std::endl;
-	}
-
-	objStream.close();
-
-	/// Unlock and release buffers
-	DevC->Unmap(cpuIB, NULL);
-	vBufs->Release();
-	cpuIB->Release();
-	delete[] ciarr;
-}
-
-//////////////////////////////////////////////////////////////////////////
-// PERFORMANCE CRITICAL
-// Capture Logic Vertex Segment
-//
-void FCapMeshLogicVertexSegment(ID3D11Device* Device, ID3D11DeviceContext *DevC, UINT VertexIndexOffset, INT BaseVertexIndex, void *IndexBuffer, UINT IndexCount)
-{
-	ID3D11Buffer *vBufs;
-	DXGI_FORMAT temp;
-	UINT Stride;
-	UINT Offset;
-	DevC->IAGetVertexBuffers(0, 1, &vBufs, &Stride, &Offset);
-
-	//std::cout << "vBufs Valid: " << ((vBufs) ? "Yes" : "No") << std::endl;
-	if (!vBufs) return;
-
-	//d3dw->Event << "vBufs Valid : " << ((vBufs) ? "Yes" : "No") << std::endl << "Stride: " << Stride << std::endl;
-
-	/// CREATE CPUSIDE BUFFER
-	D3D11_BUFFER_DESC ciBuf;
-	ID3D11Buffer *cpuIB;
-	vBufs->GetDesc(&ciBuf);
-
-
-
-	D3D11_BUFFER_DESC i_buffer_desc;
-	i_buffer_desc.Usage = D3D11_USAGE::D3D11_USAGE_STAGING;
-	i_buffer_desc.BindFlags = 0;
-	i_buffer_desc.ByteWidth = ciBuf.ByteWidth;
-	i_buffer_desc.CPUAccessFlags = D3D11_CPU_ACCESS_FLAG::D3D11_CPU_ACCESS_READ | D3D11_CPU_ACCESS_WRITE;
-	i_buffer_desc.MiscFlags = 0;
-	i_buffer_desc.StructureByteStride = ciBuf.StructureByteStride;
-
-	char* ciarr = new char[ciBuf.ByteWidth];
-	ZeroMemory(ciarr, ciBuf.ByteWidth);
-
-	D3D11_SUBRESOURCE_DATA ini_data;
-	ini_data.pSysMem = ciarr;
-	ini_data.SysMemPitch = 0;
-	ini_data.SysMemSlicePitch = 0;
-
-	Device->CreateBuffer(&i_buffer_desc, &ini_data, &cpuIB);
-
-	DevC->CopyResource(cpuIB, vBufs);
-
-
-
-	// foreach
-	D3D11_MAPPED_SUBRESOURCE ms;
-	DevC->Map(cpuIB, NULL, D3D11_MAP_READ, NULL, &ms);
-
-	if (!ms.pData)
-	{
-		std::cout << "vData is null" << std::endl;
-		return;
-	}
-	//std::ofstream testStream("format" + std::to_string(primsCapd) + ".fmt", std::ios::binary);
-	//testStream.write((char*)ms.pData + Offset, Stride);
-	//testStream.close();
-
-	/// Continue down the rabbit hole
-	FCapMeshLogicMapSegment(Device, DevC, VertexIndexOffset, BaseVertexIndex, IndexBuffer, ms.pData, Stride, Offset, IndexCount);
-
-	/// Unlock and release buffers
-	DevC->Unmap(cpuIB, NULL);
-	vBufs->Release();
-	cpuIB->Release();
-	delete[] ciarr;
-}
-
-
-//////////////////////////////////////////////////////////////////////////
-// PERFORMANCE CRITICAL
-// Capture Logic Index Segment
-//
-void FCapMeshLogicIndexSegment(ID3D11Device* Device, ID3D11DeviceContext* DevC, UINT VertexIndexOffset, INT BaseVertexIndex, UINT IndexCount)
-{
-	/// Get Index Buffer
-	ID3D11Buffer *indexBuffer = nullptr;
-	DXGI_FORMAT indBufFormat;
-	UINT offset;
-	DevC->IAGetIndexBuffer(&indexBuffer, &indBufFormat, &offset);
-	//d3dw->Event << "iBufs Valid : " << ((indexBuffer) ? "Yes" : "No") << std::endl << "Offset: " << offset << std::endl;
-	//std::cout << "iBufs Valid : " << ((indexBuffer) ? "Yes" : "No") << std::endl << "Offset: " << offset << std::endl;
-
-	// TEMPORARILY HERE
-	//ID3D11InputLayout *inpLayout = nullptr;
-	//DevC->IAGetInputLayout(&inpLayout);
-
-//	inpLayout.
-	//DevC->IAGetPrimitiveTopology()
-
-	///// Get Index Buffer Descriptions
-	//D3D9Base::D3DINDEXBUFFER_DESC indexBufferDesciption;
-	//if (indexBuffer->GetDesc(&indexBufferDesciption) != D3D_OK)
-	//{
-	//	indexBuffer->Release();
-	//	return;
-	//}
-
-	///// Get Index Buffer Desc Formats
-	//if (D3DFMT_INDEX16 != indexBufferDesciption.Format) {
-	//	indexBuffer->Release();
-	//	return;
-	//}
-
-
-	/// Get Index Buffer Data and lock the buffer
-	//uint16_t *indexBufferData = nullptr;
-	//if (indexBuffer->Lock(0, 0, reinterpret_cast<void **>(&indexBufferData), D3DLOCK_READONLY) != D3D_OK) {
-	//	indexBuffer->Release();
-	//	return;
-	//}
-
-
-	/// CREATE CPUSIDE BUFFER
-	D3D11_BUFFER_DESC ciBuf;
-	ID3D11Buffer *cpuIB;
-	indexBuffer->GetDesc(&ciBuf);
-
-	//d3dw->Event << "BUFFER MADE" << std::endl;
-
-	D3D11_BUFFER_DESC i_buffer_desc;
-	i_buffer_desc.Usage = D3D11_USAGE::D3D11_USAGE_STAGING;
-	i_buffer_desc.BindFlags = 0;
-	i_buffer_desc.ByteWidth = ciBuf.ByteWidth;
-	i_buffer_desc.CPUAccessFlags = D3D11_CPU_ACCESS_FLAG::D3D11_CPU_ACCESS_READ;
-	i_buffer_desc.MiscFlags = 0;
-	i_buffer_desc.StructureByteStride = ciBuf.StructureByteStride;
-
-	char* ciarr = new char[ciBuf.ByteWidth];
-	ZeroMemory(ciarr, ciBuf.ByteWidth);
-
-	D3D11_SUBRESOURCE_DATA ini_data;
-	ini_data.pSysMem = ciarr;
-	ini_data.SysMemPitch = 0;
-	ini_data.SysMemSlicePitch = 0;
-
-	Device->CreateBuffer(&i_buffer_desc, &ini_data, &cpuIB);
-	//d3dw->Event << "BUFFER MADE" << std::endl;
-
-	DevC->CopyResource(cpuIB, indexBuffer);
-	//d3dw->Event << "BUFFER COPIED" << std::endl;
-
-	//std::cout << (int)ciarr[0] << (int)ciarr[1000 % ciBuf.ByteWidth] << std::endl;
-
-	D3D11_MAPPED_SUBRESOURCE ms;
-	HRESULT h = DevC->Map(cpuIB, 0, D3D11_MAP::D3D11_MAP_READ, NULL, &ms);
-	//std::cout << "iBufs Mapped" << std::endl;
-	//d3dw->Event << h << std::endl;
-
-	if (!ms.pData)
-	{
-		std::cout << "pData is null" << std::endl;
-		return;
-	}
-
-	//std::cout << reinterpret_cast<UINT*>(ms.pData)[3] << std::endl;
-
-	/// Continue down the rabbit hole
-	FCapMeshLogicVertexSegment(Device, DevC, VertexIndexOffset, BaseVertexIndex, ms.pData, IndexCount);
-
-	/// Unlock and release buffers
-	//indexBuffer->Release();
-	DevC->Unmap(cpuIB, NULL);
-	indexBuffer->Release();
-	delete[] ciarr;
-	cpuIB->Release();
-}
-
-void FCAPALL()
-{
-	for (int i = 0; i < bufList.size(); ++i)
-	{
-		if (bufList[i]->bIsIndex && bufList[i]->bufferPointer)
-		{
-			std::ofstream objStream(DirectoryPrefix + "Call_" + std::to_string(i) + ".indexObject");
-			objStream.write(
-				static_cast<char *>(
-					const_cast<void *>(
-						bufList[i]->bufferPointer
-						)
-					), bufList[i]->uSize);
-
-			objStream.close();
-		}
-		else if (bufList[i]->bufferPointer)
-		{
-			std::ofstream vStream(DirectoryPrefix + "CallV_" + std::to_string(i) + ".vertexObject");
-			vStream.write(
-				static_cast<char *>(
-					const_cast<void *>(
-						bufList[i]->bufferPointer
-						)
-					), bufList[i]->uSize);
-
-			vStream.close();
-		}
-		else
-		{
-			std::cout << "Buffer " << primsCapd << " is null" << std::endl;
-		}
-	}
-}
-
-#pragma endregion 
 
 void D3D11CustomContext::DrawIndexed(UINT IndexCount, UINT StartIndexLocation, INT BaseVertexLocation)
 {
@@ -1052,33 +382,9 @@ void D3D11CustomContext::DrawIndexed(UINT IndexCount, UINT StartIndexLocation, I
 		std::cout << "Changing Process State from Await to AwaitPresent" << std::endl;
 	}
 
-	if (CurrentState == ECaptureState::Capture)
-	{
-		lock_guard<std::mutex> lock(drawCallMutex);
-		direct = "DrawIndx";
-
-		ID3D11Device *dev;
-		GetDevice(&dev);
-#ifdef __DUMP_DATA__
-		if(SaveVBandIBFromDevice(dev, m_devContext) == 1)
-		{
-			std::cout << "Error capturing buffers for Draw Call " << drawCallNumber << std::endl;
-		}
-#endif
-#ifdef __EXPORT_MODELS__
-		FCapMeshLogicIndexSegment(dev, this, StartIndexLocation, BaseVertexLocation, IndexCount);
-#endif
-		resetBufferCounters();
-		++drawCallNumber;	
-#ifdef __DUMP_DATA__
-		infoOutput.close();
-		infoOutput = std::ofstream(DirectoryPrefix + std::to_string(drawCallNumber) + ".vmrinfo");
-		infoOutput << "BufferType, BufferSize, BufferStride, BindFlags, Usage, BufferOffset, VertexInfoStride" << std::endl;
-#endif
-	}
-
+	CaptureDraw();
+	++drawCallNumber;
 	m_devContext->DrawIndexed(IndexCount, StartIndexLocation, BaseVertexLocation);
-
 }
 
 void D3D11CustomContext::Draw(UINT VertexCount, UINT StartVertexLocation)
@@ -1088,34 +394,9 @@ void D3D11CustomContext::Draw(UINT VertexCount, UINT StartVertexLocation)
 		CurrentState = ECaptureState::WaitingForPresent;
 	}
 
-	if (CurrentState == ECaptureState::Capture)
-	{
-		lock_guard<std::mutex> lock(drawCallMutex);
-		direct = "Draw";
-
-		ID3D11Device *dev;
-		GetDevice(&dev);
-#ifdef __DUMP_DATA__
-
-
-		if (SaveVBandIBFromDevice(dev, m_devContext) == 1)
-		{
-			std::cout << "Error capturing buffers for Draw Call " << drawCallNumber << std::endl;
-		}
-#endif
-#ifdef __EXPORT_MODELS__
-		FCapMeshLogicVertexOnlySegment(dev, this, StartVertexLocation, VertexCount);
-#endif
-		resetBufferCounters();
-		++drawCallNumber;
-#ifdef __DUMP_DATA__
-		infoOutput.close();
-		infoOutput = std::ofstream(DirectoryPrefix + std::to_string(drawCallNumber) + ".vmrinfo");
-		infoOutput << "BufferType, BufferSize, BufferStride, BindFlags, Usage, BufferOffset, VertexInfoStride" << std::endl;
-#endif
-	}
+	CaptureDraw();
+	++drawCallNumber;
 	m_devContext->Draw(VertexCount, StartVertexLocation);
-
 }
 
 HRESULT D3D11CustomContext::Map(ID3D11Resource* pResource, UINT Subresource, D3D11_MAP MapType, UINT MapFlags, D3D11_MAPPED_SUBRESOURCE* pMappedResource)
@@ -1135,8 +416,17 @@ void D3D11CustomContext::PSSetConstantBuffers(UINT StartSlot, UINT NumBuffers, I
 
 void D3D11CustomContext::IASetInputLayout(ID3D11InputLayout* pInputLayout)
 {
-	std::ofstream infoOutput(DirectoryPrefix + std::to_string(drawCallNumber) + ".vmril");
-	//pInputLayout
+	if (CurrentState == ECaptureState::Capture)
+	{
+		//std::ofstream infoOutput(DirectoryPrefix + std::to_string(drawCallNumber) + ".vmril");
+		auto location = InputLayoutMap.find(pInputLayout);
+		if (location != InputLayoutMap.end()) // No Item
+		{
+			// location->second;
+			std::ofstream infoOutput(DirectoryPrefix + std::to_string(drawCallNumber) + ".vmril", std::ios::binary | std::ios::app);
+			infoOutput << location->second << std::endl;
+		}
+	}
 	m_devContext->IASetInputLayout(pInputLayout);
 }
 
@@ -1155,36 +445,10 @@ void D3D11CustomContext::DrawIndexedInstanced(UINT IndexCountPerInstance, UINT I
 	if (GetAsyncKeyState(VK_DOWN) & 0x8000 && CurrentState == ECaptureState::Await)
 	{
 		CurrentState = ECaptureState::WaitingForPresent;
-		
 	}
 
-	if (CurrentState == ECaptureState::Capture)
-	{
-		lock_guard<std::mutex> lock(drawCallMutex);
-		direct = "DrawIndxInst";
-
-		ID3D11Device *dev;
-		GetDevice(&dev);
-#ifdef __DUMP_DATA__
-
-
-		if (SaveVBandIBFromDevice(dev, m_devContext) == 1)
-		{
-			std::cout << "Error capturing buffers for Draw Call " << drawCallNumber << std::endl;
-		}
-#endif
-#ifdef __EXPORT_MODELS__
-		FCapMeshLogicIndexSegment(dev, this, StartIndexLocation, BaseVertexLocation, IndexCountPerInstance);
-#endif
-		resetBufferCounters();
-		++drawCallNumber;
-#ifdef __DUMP_DATA__
-		infoOutput.close();
-		infoOutput = std::ofstream(DirectoryPrefix + std::to_string(drawCallNumber) + ".vmrinfo");
-		infoOutput << "BufferType, BufferSize, BufferStride, BindFlags, Usage, BufferOffset, VertexInfoStride" << std::endl;
-#endif
-	}
-	
+	CaptureDraw();
+	++drawCallNumber;
 	m_devContext->DrawIndexedInstanced(IndexCountPerInstance, InstanceCount, StartIndexLocation, BaseVertexLocation, StartInstanceLocation);
 }
 
@@ -1195,31 +459,8 @@ void D3D11CustomContext::DrawInstanced(UINT VertexCountPerInstance, UINT Instanc
 		CurrentState = ECaptureState::WaitingForPresent;
 	}
 
-	if (CurrentState == ECaptureState::Capture)
-	{
-		lock_guard<std::mutex> lock(drawCallMutex);
-		ID3D11Device *dev;
-		GetDevice(&dev);
-		direct = "DrawInst";
-#ifdef __DUMP_DATA__
-
-		if (SaveVBandIBFromDevice(dev, this) == 1)
-		{
-			std::cout << "Error capturing buffers for Draw Call " << drawCallNumber << std::endl;
-		}
-#endif
-#ifdef __EXPORT_MODELS__
-
-#endif
-		resetBufferCounters();
-		++drawCallNumber;
-#ifdef __DUMP_DATA__
-		infoOutput.close();
-		infoOutput = std::ofstream(DirectoryPrefix + std::to_string(drawCallNumber) + ".vmrinfo");
-		infoOutput << "BufferType, BufferSize, BufferStride, BindFlags, Usage, BufferOffset, VertexInfoStride" << std::endl;
-#endif
-	}
-
+	CaptureDraw();
+	++drawCallNumber;
 	m_devContext->DrawInstanced(VertexCountPerInstance, InstanceCount, StartVertexLocation, StartInstanceLocation);
 }
 
@@ -1254,7 +495,7 @@ void D3D11CustomContext::Begin(ID3D11Asynchronous* pAsync)
 }
 
 void D3D11CustomContext::End(ID3D11Asynchronous* pAsync)
-{	
+{
 	m_devContext->End(pAsync);
 }
 
@@ -1306,22 +547,19 @@ void D3D11CustomContext::SOSetTargets(UINT NumBuffers, ID3D11Buffer* const* ppSO
 void D3D11CustomContext::DrawAuto()
 {
 	std::cout << "Auto draw call..." << std::endl;
-	m_devContext->DrawAuto(); 
-	resetBufferCounters();
+	m_devContext->DrawAuto();
 	++drawCallNumber;
 }
 
 void D3D11CustomContext::DrawIndexedInstancedIndirect(ID3D11Buffer* pBufferForArgs, UINT AlignedByteOffsetForArgs)
 {
 	m_devContext->DrawIndexedInstancedIndirect(pBufferForArgs, AlignedByteOffsetForArgs);
-	resetBufferCounters();
 	++drawCallNumber;
 }
 
 void D3D11CustomContext::DrawInstancedIndirect(ID3D11Buffer* pBufferForArgs, UINT AlignedByteOffsetForArgs)
 {
 	m_devContext->DrawInstancedIndirect(pBufferForArgs, AlignedByteOffsetForArgs);
-	resetBufferCounters();
 	++drawCallNumber;
 }
 

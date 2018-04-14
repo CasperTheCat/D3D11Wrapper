@@ -43,6 +43,7 @@ enum class ECaptureState : uint8_t
 class D3D11CustomContext : public ID3D11DeviceContext
 {
 	friend class D3D11CustomDevice;
+
 protected:
 	ID3D11DeviceContext *m_devContext;
 	D3D11CustomDevice *CustomDevice;
@@ -55,6 +56,8 @@ protected:
 	int SaveVBandIBFromDevice(ID3D11Device* Device, ID3D11DeviceContext* DevC);
 	int DumpVSConstBuffer(ID3D11Device* Device, ID3D11DeviceContext *DevC, ID3D11Buffer * const * ppConstBuffer);
 	int DumpVSConstBufferWithName(ID3D11Device* Device, ID3D11DeviceContext *DevC, ID3D11Buffer * const * ppConstBuffer, std::string name);
+	void CaptureDraw();
+
 public:
 	virtual ~D3D11CustomContext() = default;
 	D3D11CustomContext(ID3D11DeviceContext *dev, ID3D11DeviceContext ***ret);

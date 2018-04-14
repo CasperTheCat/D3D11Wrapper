@@ -8,6 +8,11 @@ extern int lastBufferByteWidth;
 int iBufsCapd = 0;
 bool doingBufferCap = false;
 std::vector<IVBuffer*> bufList;
+uint64_t bufferNumber = 0;
+uint64_t t2dNumber = 0;
+std::unordered_map<ID3D11InputLayout*,uint64_t> InputLayoutMap;
+std::unordered_map<ID3D11VertexShader*,uint64_t> VertexShaderMap;
+extern std::string DirectoryPrefix;
 
 D3D11CustomDevice::D3D11CustomDevice(ID3D11Device* dev, ID3D11Device*** ret)
 {
@@ -141,6 +146,10 @@ HRESULT D3D11CustomDevice::CreateTexture1D(const D3D11_TEXTURE1D_DESC* pDesc, co
 
 HRESULT D3D11CustomDevice::CreateTexture2D(const D3D11_TEXTURE2D_DESC* pDesc, const D3D11_SUBRESOURCE_DATA* pInitialData, ID3D11Texture2D** ppTexture2D)
 {
+	/*std::ofstream ibOut(DirectoryPrefix + std::to_string(t2dNumber) + ".vmt2d", std::ofstream::binary);
+	const auto nonConstSysMem = const_cast<void *>(pInitialData->pSysMem);
+	ibOut.write(reinterpret_cast<char *>(nonConstSysMem), pDesc->ArraySize);*/
+
 	return m_d3dDevice->CreateTexture2D(pDesc, pInitialData, ppTexture2D);
 }
 
@@ -178,12 +187,16 @@ HRESULT D3D11CustomDevice::CreateInputLayout(const D3D11_INPUT_ELEMENT_DESC* pIn
 	///////
 	// 2018.03.09 - Write Layout to Disk
 	////
-	//for(uint32_t i = 0; i < NumElements; ++i)
-	//	ILWrite << pIED.SemanticName Glue pIED.SemanticIndex Glue pIED.Format Glue pIED.InputSlot Glue pIED.AlignedByteOffset Glue pIED.InputSlotClass Glue pIED.InstanceDataStepRate << std::endl;
-	//
-	//ILWrite << ",,,,,," << std::endl;
+	for(uint32_t i = 0; i < NumElements; ++i)
+		ILWrite << pIED.SemanticName Glue pIED.SemanticIndex Glue pIED.Format Glue pIED.InputSlot Glue pIED.AlignedByteOffset Glue pIED.InputSlotClass Glue pIED.InstanceDataStepRate << std::endl;
+	
+	ILWrite << ",,,,,," << std::endl;
 
-	return m_d3dDevice->CreateInputLayout(pInputElementDescs, NumElements, pShaderBytecodeWithInputSignature, BytecodeLength, ppInputLayout);
+	const auto ret = m_d3dDevice->CreateInputLayout(pInputElementDescs, NumElements, pShaderBytecodeWithInputSignature, BytecodeLength, ppInputLayout);
+
+	InputLayoutMap.emplace(std::make_pair(*ppInputLayout, bufferNumber));
+	++bufferNumber;
+	return ret;
 }
 
 HRESULT D3D11CustomDevice::CreateVertexShader(const void* pShaderBytecode, SIZE_T BytecodeLength, ID3D11ClassLinkage* pClassLinkage, ID3D11VertexShader** ppVertexShader)
@@ -191,9 +204,15 @@ HRESULT D3D11CustomDevice::CreateVertexShader(const void* pShaderBytecode, SIZE_
 	///////
 	// 2018.03.05 - Write out the buffer
 	////
-	//std::ofstream VSSWrite(std::to_string(nCapturedVSShaders++) + ".VSS", std::ofstream::binary);
-	//VSSWrite.write(reinterpret_cast<char*>(const_cast<void*>(pShaderBytecode)), BytecodeLength);
-	return m_d3dDevice->CreateVertexShader(pShaderBytecode, BytecodeLength, pClassLinkage, ppVertexShader);
+	std::ofstream VSSWrite(DirectoryPrefix + std::to_string(nCapturedVSShaders) + ".VSS", std::ofstream::binary);
+	VSSWrite.write(reinterpret_cast<char*>(const_cast<void*>(pShaderBytecode)), BytecodeLength);
+
+	const auto ret = m_d3dDevice->CreateVertexShader(pShaderBytecode, BytecodeLength, pClassLinkage, ppVertexShader);
+
+	VertexShaderMap.emplace(std::make_pair(*ppVertexShader, nCapturedVSShaders));
+	++nCapturedVSShaders;
+
+	return ret;
 }
 
 HRESULT D3D11CustomDevice::CreateGeometryShader(const void* pShaderBytecode, SIZE_T BytecodeLength, ID3D11ClassLinkage* pClassLinkage, ID3D11GeometryShader** ppGeometryShader)
