@@ -13,11 +13,13 @@ D3D11CustomDevice::D3D11CustomDevice(ID3D11Device* dev, ID3D11Device*** ret)
 {
 	m_d3dDevice = dev;
 	*ret = &m_d3dDevice;
+	PostInitialise();
 }
 
 D3D11CustomDevice::D3D11CustomDevice(ID3D11Device* dev)
 {
 	m_d3dDevice = dev;
+	PostInitialise();
 }
 
 void D3D11CustomDevice::PostInitialise()
@@ -25,6 +27,12 @@ void D3D11CustomDevice::PostInitialise()
 	nCapturedVSShaders = 0;
 	nCapturedFSShaders = 0;
 	nBuffersCaptured = 0;
+
+	///////
+	// 2018.03.09 - Write Layout to Disk
+	////
+	ILWrite = std::ofstream("InputLayouts.csv", std::ofstream::binary);
+	ILWrite << "SemanticName,SemanticIndex,Format,InputSlot,AlignedByteOffset,InputSlotClass,InstanceDataStepRate" << std::endl;
 }
 
 void D3D11CustomDevice::Notify_Present()
@@ -116,12 +124,12 @@ HRESULT D3D11CustomDevice::CreateBuffer(const D3D11_BUFFER_DESC* pDesc, const D3
 	// 2018.03.05 - Capture buffers on creation
 	// SIZE DEPENDANT
 	///
-	++nBuffersSeen;
-	if(pDesc->ByteWidth > (1024 * 8) && pDesc->BindFlags & D3D11_BIND_CONSTANT_BUFFER)
-	{
-		std::ofstream bcOut(std::to_string(nBuffersCaptured++) + "." + std::to_string(nBuffersSeen) + ".vmrbc", std::ofstream::binary);
-		bcOut.write(reinterpret_cast<char *>(const_cast<D3D11_SUBRESOURCE_DATA *>(pInitialData)), pDesc->ByteWidth);
-	}
+	//++nBuffersSeen;
+	//if(pDesc->ByteWidth > (1024 * 8) && pDesc->BindFlags & D3D11_BIND_CONSTANT_BUFFER)
+	//{
+	//	std::ofstream bcOut(std::to_string(nBuffersCaptured++) + "." + std::to_string(nBuffersSeen) + ".vmrbc", std::ofstream::binary);
+	//	bcOut.write(reinterpret_cast<char *>(const_cast<D3D11_SUBRESOURCE_DATA *>(pInitialData)), pDesc->ByteWidth);
+	//}
 
 	return m_d3dDevice->CreateBuffer(pDesc, pInitialData, ppBuffer);
 }
@@ -161,8 +169,20 @@ HRESULT D3D11CustomDevice::CreateDepthStencilView(ID3D11Resource* pResource, con
 	return m_d3dDevice->CreateDepthStencilView(pResource, pDesc, ppDepthStencilView);
 }
 
+// 2018.03.09 - Define for ease of use
+#define pIED pInputElementDescs[i]
+#define Glue << "," <<
+
 HRESULT D3D11CustomDevice::CreateInputLayout(const D3D11_INPUT_ELEMENT_DESC* pInputElementDescs, UINT NumElements, const void* pShaderBytecodeWithInputSignature, SIZE_T BytecodeLength, ID3D11InputLayout** ppInputLayout)
 {
+	///////
+	// 2018.03.09 - Write Layout to Disk
+	////
+	//for(uint32_t i = 0; i < NumElements; ++i)
+	//	ILWrite << pIED.SemanticName Glue pIED.SemanticIndex Glue pIED.Format Glue pIED.InputSlot Glue pIED.AlignedByteOffset Glue pIED.InputSlotClass Glue pIED.InstanceDataStepRate << std::endl;
+	//
+	//ILWrite << ",,,,,," << std::endl;
+
 	return m_d3dDevice->CreateInputLayout(pInputElementDescs, NumElements, pShaderBytecodeWithInputSignature, BytecodeLength, ppInputLayout);
 }
 
@@ -171,8 +191,8 @@ HRESULT D3D11CustomDevice::CreateVertexShader(const void* pShaderBytecode, SIZE_
 	///////
 	// 2018.03.05 - Write out the buffer
 	////
-	std::ofstream VSSWrite(std::to_string(nCapturedVSShaders++) + ".VSS", std::ofstream::binary);
-	VSSWrite.write(reinterpret_cast<char*>(const_cast<void*>(pShaderBytecode)), BytecodeLength);
+	//std::ofstream VSSWrite(std::to_string(nCapturedVSShaders++) + ".VSS", std::ofstream::binary);
+	//VSSWrite.write(reinterpret_cast<char*>(const_cast<void*>(pShaderBytecode)), BytecodeLength);
 	return m_d3dDevice->CreateVertexShader(pShaderBytecode, BytecodeLength, pClassLinkage, ppVertexShader);
 }
 

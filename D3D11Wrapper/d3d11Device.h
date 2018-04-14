@@ -38,6 +38,8 @@ protected:
 	uint32_t nBuffersCaptured;
 	uint32_t nBuffersSeen;
 
+	std::ofstream ILWrite;
+
 protected:
 	void PostInitialise();
 

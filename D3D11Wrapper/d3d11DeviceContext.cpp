@@ -11,8 +11,8 @@
 
 
 //#define __DUMP_ALL_BUFFERS__ 1
-#define __DUMP_DATA__ 1
-#define __EXPORT_MODELS__ 1
+//#define __DUMP_DATA__ 1
+//#define __EXPORT_MODELS__ 1
 
 #if defined(__DUMP_ALL_BUFFERS__) 
 uint32_t globalVSBufferCount = 0;
@@ -20,23 +20,28 @@ std::unordered_set<void *> accountedBuffers;
 bool AllowCap = false;
 #endif
 
+std::unordered_set<void *> pointerTable;
+
+std::string DirectoryPrefix = "VMRDATA\\";
 
 #define USING_VB_STRUCT
-//#define USING_NIER_AUTOMATA_VBI
-#define USING_BDO_VBI
+#define USING_NIER_AUTOMATA_VBI
+//#define USING_BDO_VBI
 
 #if defined(USING_VB_STRUCT)
 #if defined(USING_NIER_AUTOMATA_VBI)
+#define USING_HALF_PRECISION_UV
 /// Vertex Infomation
 struct NierAutomataVBI
 {
 	float x;
 	float y;
 	float z;
-	uint8_t uk1[4];
-	float u;
-	float v;
-	uint8_t uk2[4];
+	uint8_t tangent_unorm[4];
+	uint16_t u;
+	uint16_t v;
+	uint8_t blendIndices_uint[4];
+	uint8_t blendweight_unorm[4];
 };
 typedef NierAutomataVBI VBStruct;
 #elif defined(USING_BDO_VBI)
@@ -100,7 +105,7 @@ void D3D11CustomContext::Notify_Present()
 	drawCallNumber = 0;
 	vsBufferNumber = 0;
 	psBufferNumber = 0;
-	std::cout << "Present Notify" << std::endl;
+	//std::cout << "Present Notify" << std::endl;
 	if (CurrentState == ECaptureState::Capture)
 	{
 		CurrentState = ECaptureState::Await;
@@ -121,7 +126,7 @@ void D3D11CustomContext::Notify_Present()
 		CurrentState = ECaptureState::Capture;
 		std::cout << "Switching to Capture State" << std::endl;
 		// Preemptively open a output stream
-		infoOutput = std::ofstream(std::to_string(drawCallNumber) + ".vmrinfo");
+		infoOutput = std::ofstream(DirectoryPrefix + std::to_string(drawCallNumber) + ".vmrinfo");
 		infoOutput << "BufferType, BufferSize, BufferStride, BindFlags, Usage, BufferOffset, VertexInfoStride" << std::endl;
 	}
 }
@@ -174,7 +179,7 @@ int D3D11CustomContext::SaveVBandIBFromDevice(ID3D11Device* Device, ID3D11Device
 	if (ms.pData)
 	{
 		// Data is valid. Save it
-		std::ofstream ibOut(std::to_string(drawCallNumber) + "." + direct + ".vmrib", std::ofstream::binary);
+		std::ofstream ibOut(DirectoryPrefix + std::to_string(drawCallNumber) + "." + direct + ".vmrib", std::ofstream::binary);
 		ibOut.write(reinterpret_cast<char *>(ms.pData), ciBuf.ByteWidth);
 	}
 	else return 1;
@@ -219,7 +224,7 @@ int D3D11CustomContext::SaveVBandIBFromDevice(ID3D11Device* Device, ID3D11Device
 
 	if (ms.pData)
 	{
-		std::ofstream vbOut(std::to_string(drawCallNumber) + "." + direct + ".vmrvb", std::ofstream::binary);
+		std::ofstream vbOut(DirectoryPrefix + std::to_string(drawCallNumber) + "." + direct + ".vmrvb", std::ofstream::binary);
 
 		vbOut.write(reinterpret_cast<char *>(ms.pData), ciBuf.ByteWidth);
 	}
@@ -287,7 +292,7 @@ int D3D11CustomContext::DumpVSConstBufferWithName(ID3D11Device* Device, ID3D11De
 	if (ms.pData)
 	{
 		// Data is valid. Save it
-		std::ofstream ibOut(name + ".vmrcb", std::ofstream::binary);
+		std::ofstream ibOut(DirectoryPrefix + name + ".vmrcb", std::ofstream::binary);
 
 		ibOut.write(reinterpret_cast<char *>(ms.pData), ciBuf.ByteWidth);
 	}
@@ -326,6 +331,9 @@ D3D11CustomContext::D3D11CustomContext(ID3D11DeviceContext* dev, D3D11CustomDevi
 void D3D11CustomContext::VSSetConstantBuffers(UINT StartSlot, UINT NumBuffers, ID3D11Buffer* const* ppConstantBuffers)
 {
 
+
+
+
 #ifdef __DUMP_ALL_BUFFERS__
 #ifdef __DUMP_DATA__
 	ID3D11Device *dev;
@@ -333,7 +341,7 @@ void D3D11CustomContext::VSSetConstantBuffers(UINT StartSlot, UINT NumBuffers, I
 #endif
 #endif
 
-#ifdef __DUMP_DATA__
+#if defined(__DUMP_DATA__) || 1
 	if (CurrentState == ECaptureState::Capture)
 	{
 		std::cout << "Capturing " << NumBuffers << " Buffers" << std::endl;
@@ -344,7 +352,17 @@ void D3D11CustomContext::VSSetConstantBuffers(UINT StartSlot, UINT NumBuffers, I
 #endif
 		for (uint32_t i = 0; i < NumBuffers; ++i)
 		{
-			DumpVSConstBuffer(dev, m_devContext, ppConstantBuffers + (sizeof(ID3D11Buffer*) * i) ); // Don't use the abstract layer here
+			// SpecialCasing
+			if (NumBuffers == 14 && i == 11 && *(ppConstantBuffers + (sizeof(ID3D11Buffer*) * 11)) != nullptr)
+			{
+				std::cout << "AnimBinding is " << (vsBufferNumber + 11) << std::endl;
+				DumpVSConstBufferWithName(dev, m_devContext, ppConstantBuffers + (sizeof(ID3D11Buffer*) * 11), "AnimationData." + std::to_string(vsBufferNumber + 11));
+			}
+
+			/*if (*(ppConstantBuffers + (sizeof(ID3D11Buffer*) * i)))
+				DumpVSConstBuffer(dev, m_devContext, ppConstantBuffers + (sizeof(ID3D11Buffer*) * i)); // Don't use the abstract layer here
+			else
+				std::cout << "VSCDebug" << std::endl;*/
 		}
 	}
 #endif
@@ -389,6 +407,8 @@ void D3D11CustomContext::VSSetShader(ID3D11VertexShader* pVertexShader, ID3D11Cl
 {
 	m_devContext->VSSetShader(pVertexShader, ppClassInstances, NumClassInstances);
 }
+
+#pragma region CaptureMesh
 
 ////////
 std::string ResolveDirectory()
@@ -467,7 +487,7 @@ void FCAPWriteMesh
 )
 {
 	// Write using OBJ export
-	std::ofstream objStream(direct + "dcall" + std::to_string(primsCapd++) + ".obj");
+	std::ofstream objStream(DirectoryPrefix + direct + "dcall" + std::to_string(primsCapd++) + ".obj");
 
 	//objStream.setf(std::ios_base::fixed, std::ios_base::floatfield);
 	objStream << std::fixed << std::showpoint;
@@ -661,7 +681,7 @@ void FCapMeshLogicMapSegment(ID3D11Device* Device, ID3D11DeviceContext *DevC, UI
 	if (Stride < (sizeof(float) * 3)) return;
 
 	std::vector<uint16_t> indexMap;
-	for (uint16_t i = 0; i < IndexCount; ++i) {
+	for (UINT i = 0; i < IndexCount; ++i) {
 		if((i % 10000) == 0) std::cout << "\r" << "Ripping object " << primsCapd << ", " << i / static_cast<float>(IndexCount + 1) << "%\t\t\t\t";
 		//d3dw->Event << "Adding to Map " << i << std::endl;
 		//d3dw->Event << std::hex << IndexBuffer << std::endl;
@@ -993,7 +1013,7 @@ void FCAPALL()
 	{
 		if (bufList[i]->bIsIndex && bufList[i]->bufferPointer)
 		{
-			std::ofstream objStream("Call_" + std::to_string(i) + ".indexObject");
+			std::ofstream objStream(DirectoryPrefix + "Call_" + std::to_string(i) + ".indexObject");
 			objStream.write(
 				static_cast<char *>(
 					const_cast<void *>(
@@ -1005,7 +1025,7 @@ void FCAPALL()
 		}
 		else if (bufList[i]->bufferPointer)
 		{
-			std::ofstream vStream("CallV_" + std::to_string(i) + ".vertexObject");
+			std::ofstream vStream(DirectoryPrefix + "CallV_" + std::to_string(i) + ".vertexObject");
 			vStream.write(
 				static_cast<char *>(
 					const_cast<void *>(
@@ -1021,6 +1041,8 @@ void FCAPALL()
 		}
 	}
 }
+
+#pragma endregion 
 
 void D3D11CustomContext::DrawIndexed(UINT IndexCount, UINT StartIndexLocation, INT BaseVertexLocation)
 {
@@ -1050,7 +1072,7 @@ void D3D11CustomContext::DrawIndexed(UINT IndexCount, UINT StartIndexLocation, I
 		++drawCallNumber;	
 #ifdef __DUMP_DATA__
 		infoOutput.close();
-		infoOutput = std::ofstream(std::to_string(drawCallNumber) + ".vmrinfo");
+		infoOutput = std::ofstream(DirectoryPrefix + std::to_string(drawCallNumber) + ".vmrinfo");
 		infoOutput << "BufferType, BufferSize, BufferStride, BindFlags, Usage, BufferOffset, VertexInfoStride" << std::endl;
 #endif
 	}
@@ -1088,7 +1110,7 @@ void D3D11CustomContext::Draw(UINT VertexCount, UINT StartVertexLocation)
 		++drawCallNumber;
 #ifdef __DUMP_DATA__
 		infoOutput.close();
-		infoOutput = std::ofstream(std::to_string(drawCallNumber) + ".vmrinfo");
+		infoOutput = std::ofstream(DirectoryPrefix + std::to_string(drawCallNumber) + ".vmrinfo");
 		infoOutput << "BufferType, BufferSize, BufferStride, BindFlags, Usage, BufferOffset, VertexInfoStride" << std::endl;
 #endif
 	}
@@ -1113,6 +1135,8 @@ void D3D11CustomContext::PSSetConstantBuffers(UINT StartSlot, UINT NumBuffers, I
 
 void D3D11CustomContext::IASetInputLayout(ID3D11InputLayout* pInputLayout)
 {
+	std::ofstream infoOutput(DirectoryPrefix + std::to_string(drawCallNumber) + ".vmril");
+	//pInputLayout
 	m_devContext->IASetInputLayout(pInputLayout);
 }
 
@@ -1156,7 +1180,7 @@ void D3D11CustomContext::DrawIndexedInstanced(UINT IndexCountPerInstance, UINT I
 		++drawCallNumber;
 #ifdef __DUMP_DATA__
 		infoOutput.close();
-		infoOutput = std::ofstream(std::to_string(drawCallNumber) + ".vmrinfo");
+		infoOutput = std::ofstream(DirectoryPrefix + std::to_string(drawCallNumber) + ".vmrinfo");
 		infoOutput << "BufferType, BufferSize, BufferStride, BindFlags, Usage, BufferOffset, VertexInfoStride" << std::endl;
 #endif
 	}
@@ -1191,7 +1215,7 @@ void D3D11CustomContext::DrawInstanced(UINT VertexCountPerInstance, UINT Instanc
 		++drawCallNumber;
 #ifdef __DUMP_DATA__
 		infoOutput.close();
-		infoOutput = std::ofstream(std::to_string(drawCallNumber) + ".vmrinfo");
+		infoOutput = std::ofstream(DirectoryPrefix + std::to_string(drawCallNumber) + ".vmrinfo");
 		infoOutput << "BufferType, BufferSize, BufferStride, BindFlags, Usage, BufferOffset, VertexInfoStride" << std::endl;
 #endif
 	}
