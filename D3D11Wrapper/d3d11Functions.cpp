@@ -1,13 +1,16 @@
 #include "stdafx.h"
-#include "d3d11Wrapper.h"
+#include "d3d11ObjectManager.h"
 #include "utils.h"
 #include "d3d11Device.h"
 #include "d3d11DeviceContext.h"
+#include "Globals.h"
 #include "../DXGIWrapper/dxgiSwapchain2.h"
 
 // Global Class
-D3D11Wrapper *d3dw = new D3D11Wrapper();
+D3DObjectManager *GlOM = new D3DObjectManager();
 
+
+// TODO: Handling
 
 
 typedef HRESULT(WINAPI* PFN_D3D11_CREATE_DEVICE)(__in_opt IDXGIAdapter*,
@@ -29,43 +32,36 @@ HRESULT WINAPI D3D11CreateDevice(
 	__out_opt D3D_FEATURE_LEVEL* pFeatureLevel,
 	__out_opt ID3D11DeviceContext** ppImmediateContext)
 {
-	d3dw->Event << LOG("D3D11CreateDevice intercepted") << std::endl;
-
-	PFN_D3D11_CREATE_DEVICE createDev = (PFN_D3D11_CREATE_DEVICE)GetProcAddress(d3dw->getDLL(), "D3D11CreateDevice");
+	// Log
+	DEBUG_LOGLINE(GlOM->Event, LOG("D3D11CreateDevice intercepted"));
+	PFN_D3D11_CREATE_DEVICE createDev = (PFN_D3D11_CREATE_DEVICE)GetProcAddress(GlOM->getDLL(), "D3D11CreateDevice");
 	if (createDev == nullptr)
 	{
-		d3dw->Event << LOGERR("Cannot find function D3D11CreateDevice in DLL") << std::endl;
+		DEBUG_LOGLINE(GlOM->Event, LOGERR("Cannot find function D3D11CreateDevice in DLL"));
 		return NULL;
 	}
 
-	///
-	//ID3D11Device **temp = ppDevice;
-	//*temp = new D3D11CustomDevice(*ppDevice, &ppDevice);
-	//*ppDevice = *temp;
-	//delete temp;
-
-	//ID3D11DeviceContext **tempCtx = ppImmediateContext;
-	//*tempCtx = new D3D11CustomContext(*ppImmediateContext, &ppImmediateContext);
-	//*ppImmediateContext = *tempCtx;
-	//delete tempCtx;
-
-	d3dw->Event << LOG("Attempting Wrapped Device Creation") << std::endl;
-	//Flags |= D3D11_CREATE_DEVICE_DEBUG;
+	// Use the real DLL's function
 	HRESULT out = createDev(pAdapter, DriverType, Software, Flags, pFeatureLevels, FeatureLevels, SDKVersion, ppDevice, pFeatureLevel, ppImmediateContext);
-	if (ppDevice != nullptr)
+	if (ppDevice)
 	{
-		d3dw->Event << LOG("Device Created") << std::endl;
-		d3dw->setDevice(*ppDevice);
+		DEBUG_LOGLINE(GlOM->Event, LOG("Device Created. Registering."));
+		//d3dw->setDevice(*ppDevice);
 
 		const auto temp = new D3D11CustomDevice(*ppDevice);
 		*ppDevice = temp;
 
-		ID3D11DeviceContext *tempCtx = new D3D11CustomContext(*ppImmediateContext, temp, d3dw);
-		*ppImmediateContext = tempCtx;
+		// Check if the optional immediate is being used
+		if (ppImmediateContext)
+		{
+			DEBUG_LOGLINE(GlOM->Event, LOG("Caught Immediate Context"));
+			ID3D11DeviceContext* tempCtx = new D3D11CustomContext(*ppImmediateContext, temp, GlOM);
+			*ppImmediateContext = tempCtx;
+		}
 	} 
 	else
 	{
-		d3dw->Event << LOGWAR("Failed to get device from D3D11") << std::endl;
+		DEBUG_LOGLINE(GlOM->Event, LOGWAR("Failed to get device from D3D11"));
 	}
 
 	return out;
@@ -89,21 +85,22 @@ HRESULT WINAPI D3D11On12CreateDevice(
 	_COM_Outptr_opt_ ID3D11DeviceContext** ppImmediateContext,
 	_Out_opt_ D3D_FEATURE_LEVEL* pChosenFeatureLevel)
 {
-	d3dw->Event << LOG("Intercepted D3D11On12CreateDevice call") << std::endl;
-	auto createDev = (PFN_D3D11ON12_CREATE_DEVICE)GetProcAddress(d3dw->getDLL(), "D3D11On12CreateDevice");
+	DEBUG_LOGLINE(GlOM->Event, LOG("Intercepted D3D11On12CreateDevice call"));
+	auto createDev = (PFN_D3D11ON12_CREATE_DEVICE)GetProcAddress(GlOM->getDLL(), "D3D11On12CreateDevice");
 	if (!createDev)
 	{
-		d3dw->Event << LOGERR("Cannot find function D3D11On12CreateDevice in DLL") << std::endl;
+		DEBUG_LOGLINE(GlOM->Event, LOGERR("Cannot find function D3D11On12CreateDevice in DLL"));
+		return NULL;
 	}
 
 	HRESULT out = createDev(pDevice, Flags, pFeatureLevels, FeatureLevels, ppCommandQueues, NumQueues, NodeMask, ppDevice, ppImmediateContext, pChosenFeatureLevel);
 	if (ppDevice != nullptr)
 	{
-		d3dw->setDevice(*ppDevice);
+		//d3dw->setDevice(*ppDevice);
 	}
 	else
 	{
-		d3dw->Event << LOGWAR("Failed to get device from D3D11") << std::endl;
+		DEBUG_LOGLINE(GlOM->Event, LOGWAR("Failed to get device from D3D11"));
 	}
 	return out;
 }
@@ -131,24 +128,30 @@ HRESULT WINAPI D3D11CreateDeviceAndSwapChain(
 	__out_opt D3D_FEATURE_LEVEL* pFeatureLevel,
 	__out_opt ID3D11DeviceContext** ppImmediateContext)
 {
-	MessageBox(NULL, L"Creating Device and SwapChain", L"D3D9Wrapper", MB_OK);
-	PFN_D3D11_CREATE_DEVICE_AND_SWAP_CHAIN createDev = (PFN_D3D11_CREATE_DEVICE_AND_SWAP_CHAIN)GetProcAddress(d3dw->getDLL(), "D3D11CreateDeviceAndSwapChain");
+	//MessageBox(NULL, L"Creating Device and SwapChain", L"D3D9Wrapper", MB_OK);
+	PFN_D3D11_CREATE_DEVICE_AND_SWAP_CHAIN createDev = (PFN_D3D11_CREATE_DEVICE_AND_SWAP_CHAIN)GetProcAddress(GlOM->getDLL(), "D3D11CreateDeviceAndSwapChain");
 	if (!createDev) return NULL;
 
 	HRESULT out = createDev(pAdapter, DriverType, Software, Flags, pFeatureLevels, FeatureLevels, SDKVersion,pSwapChainDesc,ppSwapChain, ppDevice, pFeatureLevel, ppImmediateContext);
-	if(ppDevice != nullptr)
+	if (ppDevice)
 	{
-		d3dw->Event << LOG("Device Created") << std::endl;
-		d3dw->setDevice(*ppDevice);
+		DEBUG_LOGLINE(GlOM->Event, LOG("Device Created"));
+		//GlOM->setDevice(*ppDevice);
 
 		const auto temp = new D3D11CustomDevice(*ppDevice);
 		*ppDevice = temp;
 
-		ID3D11DeviceContext *tempCtx = new D3D11CustomContext(*ppImmediateContext, temp, d3dw);
-		*ppImmediateContext = tempCtx;
+		if (ppImmediateContext)
+		{
+			ID3D11DeviceContext* tempCtx = new D3D11CustomContext(*ppImmediateContext, temp, GlOM);
+			*ppImmediateContext = tempCtx;
+		}
 
-		const auto tempSc = new DXGICustomSwapChain2(*ppSwapChain, temp);
-		*ppSwapChain = tempSc;
+		if (ppSwapChain)
+		{
+			const auto tempSc = new DXGICustomSwapChain2(*ppSwapChain, temp, GlOM);
+			*ppSwapChain = tempSc;
+		}
 	}
 	return out;
 }
@@ -156,8 +159,8 @@ HRESULT WINAPI D3D11CreateDeviceAndSwapChain(
 typedef HRESULT(WINAPI *DXGIFAC)(REFIID, void **);
 HRESULT WINAPI CreateDXGIFactory(REFIID riid, void **ppFactory)
 {
-	MessageBox(NULL, L"FactoryCreate", L"D3D9Wrapper", MB_OK);
-	DXGIFAC pCreateFactory = (DXGIFAC)GetProcAddress(d3dw->getDLL(), "CreateDXGIFactory");
+	//MessageBox(NULL, L"FactoryCreate", L"D3D9Wrapper", MB_OK);
+	DXGIFAC pCreateFactory = (DXGIFAC)GetProcAddress(GlOM->getDLL(), "CreateDXGIFactory");
 	if (!pCreateFactory)
 	{
 		//g_Globals.ErrorFile() << "coud not find Direct3DCreate9 in d3d9.dll\n";
@@ -175,8 +178,8 @@ HRESULT WINAPI CreateDXGIFactory(REFIID riid, void **ppFactory)
 
 HRESULT WINAPI CreateDXGIFactory1(REFIID riid, void **ppFactory)
 {
-	d3dw->Event << "CreateDXGIFactory1 intercepted \n";
-	DXGIFAC pCreateFactory = (DXGIFAC)GetProcAddress(d3dw->getDLL(), "CreateDXGIFactory1");
+	DEBUG_LOGLINE(GlOM->Event, LOG("CreateDXGIFactory1 intercepted"));
+	DXGIFAC pCreateFactory = (DXGIFAC)GetProcAddress(GlOM->getDLL(), "CreateDXGIFactory1");
 	if (!pCreateFactory)
 	{
 		//g_Globals.ErrorFile() << "coud not find Direct3DCreate9 in d3d9.dll\n";
@@ -194,8 +197,8 @@ HRESULT WINAPI CreateDXGIFactory1(REFIID riid, void **ppFactory)
 
 HRESULT WINAPI CreateDXGIFactory2(REFIID riid, void **ppFactory)
 {
-	MessageBox(NULL, L"FactoryCreate2", L"D3D9Wrapper", MB_OK);
-	DXGIFAC pCreateFactory = (DXGIFAC)GetProcAddress(d3dw->getDLL(), "CreateDXGIFactory2");
+	//MessageBox(NULL, L"FactoryCreate2", L"D3D9Wrapper", MB_OK);
+	DXGIFAC pCreateFactory = (DXGIFAC)GetProcAddress(GlOM->getDLL(), "CreateDXGIFactory2");
 	if (!pCreateFactory)
 	{
 		//g_Globals.ErrorFile() << "coud not find Direct3DCreate9 in d3d9.dll\n";
@@ -223,11 +226,11 @@ int WINAPI D3DPerformance_EndEvent()
 
 DWORD WINAPI D3DPerformance_GetStatus()
 {
-	MessageBox(NULL, L"D3DPERF_GetStatus", L"D3D9Wrapper", MB_OK);
+	//MessageBox(NULL, L"D3DPERF_GetStatus", L"D3D9Wrapper", MB_OK);
 	return 0;
 }
 
 void WINAPI D3DPerformance_SetMarker()
 {
-	MessageBox(NULL, L"D3DPERF_SetMarker", L"D3D9Wrapper", MB_OK);
+	//MessageBox(NULL, L"D3DPERF_SetMarker", L"D3D9Wrapper", MB_OK);
 }

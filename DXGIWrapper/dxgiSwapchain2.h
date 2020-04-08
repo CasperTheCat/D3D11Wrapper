@@ -2,15 +2,18 @@
 
 #include <dxgi1_3.h>
 #include "../D3D11Wrapper/d3d11Device.h"
+#include "../D3D11Wrapper/d3d11ObjectManager.h"
 
 class DXGICustomSwapChain2 : public IDXGISwapChain2
 {
 protected:
-	IDXGISwapChain2 * DxgiSwapchain;
-	D3D11CustomDevice * CustomDevice;
-	std::ofstream Event;
+	IDXGISwapChain2 *DxgiSwapchain;
+	// Custom Device is here directly because it gets notified
+	D3D11CustomDevice *CustomDevice;
+	D3DObjectManager *m_pGLOM;
 public:
 	DXGICustomSwapChain2(void * swapchain, IUnknown * dev);
+	DXGICustomSwapChain2(IDXGISwapChain* swapchain, ID3D11Device* dev, D3DObjectManager *glom);
 	virtual ~DXGICustomSwapChain2() = default;
 
 	#pragma region DXGISwapChain2

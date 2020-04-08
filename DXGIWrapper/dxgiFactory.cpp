@@ -6,10 +6,6 @@ DXGICustomFactory::DXGICustomFactory(void* factory)
 {
 	// Don't error for speed
 	DxgiFactory = reinterpret_cast<IDXGIFactory*>(factory);
-	Event.open("DXGIFactory.log");
-	Event << LOG("Initialising") << std::endl;
-	Event << DxgiFactory << std::endl;
-	Event << ": Success" << std::endl;
 }
 
 DXGICustomFactory::~DXGICustomFactory()

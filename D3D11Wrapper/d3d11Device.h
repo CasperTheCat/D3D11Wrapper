@@ -9,6 +9,13 @@
 #include <vector>
 #include "d3d11DeviceContext.h"
 
+// Data
+#include "../core/Frame.h"
+#include "../core/Call.h"
+
+// Shorthand
+#include "../core/Helpers/Helpers.h"
+
 class IVBuffer
 {
 public:
@@ -29,6 +36,9 @@ public:
 
 class D3D11CustomDevice : public ID3D11Device
 {
+private:
+	std::shared_ptr<std::vector<CFrame>> m_pvFrames;
+
 protected:
 	ID3D11Device *m_d3dDevice;
 	class D3D11CustomContext * CustomContext;
@@ -39,6 +49,7 @@ protected:
 	uint32_t nBuffersSeen;
 
 	std::ofstream ILWrite;
+	std::ofstream m_log;
 
 protected:
 	void PostInitialise();
@@ -49,7 +60,7 @@ public:
     D3D11CustomDevice(ID3D11Device *dev);
 	
 	virtual void Notify_Present();
-	virtual void Link(D3D11CustomContext *devCon);
+	virtual void Link(D3D11CustomContext *devCon, std::shared_ptr<std::vector<CFrame>> frames);
 
 	HRESULT STDMETHODCALLTYPE CreateBuffer(
 		/* [annotation] */

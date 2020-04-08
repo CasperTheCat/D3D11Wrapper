@@ -8,10 +8,15 @@ DXGICustomSwapChain2::DXGICustomSwapChain2(void * swapchain, IUnknown * dev)
 	// Check the device for hook
 	CustomDevice = dynamic_cast<D3D11CustomDevice*>(dev);
 	DxgiSwapchain = reinterpret_cast<IDXGISwapChain2*>(swapchain);
-	Event.open("DXGISwapChain.log");
-	Event << LOG("Initialising") << std::endl;
-	Event << CustomDevice << std::endl;
-	Event << ": Success" << std::endl;
+}
+
+DXGICustomSwapChain2::DXGICustomSwapChain2(IDXGISwapChain* swapchain, ID3D11Device* dev, D3DObjectManager* glom) :
+	CustomDevice(nullptr),
+	DxgiSwapchain(reinterpret_cast<IDXGISwapChain2*>(swapchain)),
+	m_pGLOM(glom)
+{
+	auto temp = dynamic_cast<D3D11CustomDevice*>(dev);
+	if (temp) { CustomDevice = temp; }
 }
 
 HRESULT DXGICustomSwapChain2::SetSourceSize(UINT Width, UINT Height)
@@ -113,6 +118,7 @@ HRESULT DXGICustomSwapChain2::GetRotation(DXGI_MODE_ROTATION* pRotation)
 HRESULT DXGICustomSwapChain2::Present(UINT SyncInterval, UINT Flags)
 {
 	if (CustomDevice) CustomDevice->Notify_Present();
+
 	return DxgiSwapchain->Present(SyncInterval, Flags);
 }
 
@@ -166,8 +172,9 @@ HRESULT DXGICustomSwapChain2::GetLastPresentCount(UINT* pLastPresentCount)
 #pragma region SubObject
 HRESULT DXGICustomSwapChain2::GetDevice(const IID& riid, void** ppDevice)
 {
-	// Return Hooked Device if this call goes off
-	return DxgiSwapchain->GetDevice(riid, ppDevice);
+	auto ret = DxgiSwapchain->GetDevice(riid, ppDevice);
+	if (CustomDevice) { *ppDevice = CustomDevice; }
+	return ret;
 }
 #pragma endregion
 

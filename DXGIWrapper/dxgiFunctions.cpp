@@ -14,6 +14,7 @@ enum class EFactoryType : uint8_t
 {
 	DXGIFactory,
 	DXGIFactory1,
+	DXGIFactory2,
 	TOTAL_FACTORY_TYPES
 };
 
@@ -21,7 +22,7 @@ enum class EFactoryType : uint8_t
 HRESULT WINAPI CreateDXGIFactory_Generic(REFIID riid, _COM_Outptr_ void **ppFactory, EFactoryType factory)
 {
 	// I assume most calls are made to DXGI Factory Create here and not the other functions.
-	dxgw->Event << LOG("Caught DXGI Factory Call") << std::endl;
+	//dxgw->Event << LOG("Caught DXGI Factory Call") << std::endl;
 
 	// Get the real function address
 	DXGIFAC pCreateFactory = nullptr;
@@ -33,15 +34,18 @@ HRESULT WINAPI CreateDXGIFactory_Generic(REFIID riid, _COM_Outptr_ void **ppFact
 	case EFactoryType::DXGIFactory1:
 		pCreateFactory = (DXGIFAC)GetProcAddress(dxgw->getDLL(), "CreateDXGIFactory1");
 		break;
+	case EFactoryType::DXGIFactory2:
+		pCreateFactory = (DXGIFAC)GetProcAddress(dxgw->getDLL(), "CreateDXGIFactory2");
+		break;
 	default:
-		dxgw->Event << LOGERR("Invalid Factory Type Requested") << std::endl;
+		//dxgw->Event << LOGERR("Invalid Factory Type Requested") << std::endl;
 		return NULL;
 	}
 
 	// Check Validity
 	if (pCreateFactory == nullptr)
 	{
-		dxgw->Event << LOGERR("Unable to find CreateDXGIFactory in DLL") << std::endl;
+		//dxgw->Event << LOGERR("Unable to find CreateDXGIFactory in DLL") << std::endl;
 		return NULL;
 	}
 
@@ -50,11 +54,15 @@ HRESULT WINAPI CreateDXGIFactory_Generic(REFIID riid, _COM_Outptr_ void **ppFact
 	switch (factory)
 	{
 	case EFactoryType::DXGIFactory:
-		dxgw->Event << LOG("Creating DXGI Factory: ");
+		//dxgw->Event << LOG("Creating DXGI Factory: ");
 		hRes = pCreateFactory(riid, ppFactory);
 		break;
 	case EFactoryType::DXGIFactory1:
-		dxgw->Event << LOG("Creating DXGI Factory1: ");
+		//dxgw->Event << LOG("Creating DXGI Factory1: ");
+		hRes = pCreateFactory(riid, ppFactory);
+		break;
+	case EFactoryType::DXGIFactory2:
+		//dxgw->Event << LOG("Creating DXGI Factory1: ");
 		hRes = pCreateFactory(riid, ppFactory);
 		break;
 	default:;
@@ -64,7 +72,7 @@ HRESULT WINAPI CreateDXGIFactory_Generic(REFIID riid, _COM_Outptr_ void **ppFact
 
 	if (ppFactory != nullptr)
 	{
-		dxgw->Event << "Success" << std::endl;
+		//dxgw->Event << "Success" << std::endl;
 
 		// Wrap the factory
 		IDXGIFactory * pTempDXGIFactory = nullptr;
@@ -78,12 +86,16 @@ HRESULT WINAPI CreateDXGIFactory_Generic(REFIID riid, _COM_Outptr_ void **ppFact
 			pTempDXGIFactory = new DXGICustomFactory1(*ppFactory);
 			*ppFactory = pTempDXGIFactory;
 			break;
+		case EFactoryType::DXGIFactory2:
+			pTempDXGIFactory = new DXGICustomFactory1(*ppFactory);
+			*ppFactory = pTempDXGIFactory;
+			break;
 		default:;
 		}
 	}
 	else
 	{
-		dxgw->Event << "Failure" << std::endl;
+		//dxgw->Event << "Failure" << std::endl;
 	}
 
 	return hRes;
@@ -103,7 +115,7 @@ HRESULT WINAPI CreateDXGIFactory1(REFIID riid, _COM_Outptr_  void **ppFactory)
 HRESULT WINAPI CreateDXGIFactory2(UINT Flags, REFIID riid, _COM_Outptr_  void **ppFactory)
 {
 	// I assume most calls are made to DXGI Factory Create here and not the other functions.
-	dxgw->Event << LOG("Caught DXGI Factory Call") << std::endl;
+	//dxgw->Event << LOG("Caught DXGI Factory Call") << std::endl;
 
 	// Get the real function address
 	DXGIFAC2 pCreateFactory = (DXGIFAC2)GetProcAddress(dxgw->getDLL(), "CreateDXGIFactory2");
@@ -112,19 +124,19 @@ HRESULT WINAPI CreateDXGIFactory2(UINT Flags, REFIID riid, _COM_Outptr_  void **
 	// Check Validity
 	if (pCreateFactory == nullptr)
 	{
-		dxgw->Event << LOGERR("Unable to find CreateDXGIFactory2 in DLL") << std::endl;
+		//dxgw->Event << LOGERR("Unable to find CreateDXGIFactory2 in DLL") << std::endl;
 		return NULL;
 	}
 
 
-	dxgw->Event << LOG("Creating DXGI Factory2: ");
+	//dxgw->Event << LOG("Creating DXGI Factory2: ");
 	HRESULT hRes = pCreateFactory(Flags, riid, ppFactory);
 
 
 
 	if (ppFactory != nullptr)
 	{
-		dxgw->Event << "Success" << std::endl;
+		//dxgw->Event << "Success" << std::endl;
 
 		// Wrap the factory
 		IDXGIFactory *pTempDXGIFactory = new DXGICustomFactory2(*ppFactory);
@@ -132,7 +144,7 @@ HRESULT WINAPI CreateDXGIFactory2(UINT Flags, REFIID riid, _COM_Outptr_  void **
 	}
 	else
 	{
-		dxgw->Event << "Failure" << std::endl;
+		//dxgw->Event << "Failure" << std::endl;
 	}
 
 	return hRes;

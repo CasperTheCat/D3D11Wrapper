@@ -13,6 +13,18 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="Header Files\Stateful">
+      <UniqueIdentifier>{22ded900-12bc-4d7d-a193-3e98899d2b6f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Interfaces">
+      <UniqueIdentifier>{bdd7a5a0-5645-470f-b92a-1b00f9041f64}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Helpers">
+      <UniqueIdentifier>{0d2eeec3-d165-4ca5-b558-693e5d42a6d8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Stateful">
+      <UniqueIdentifier>{5af593bb-e7c5-4e95-be18-f5879a0ccb76}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <Text Include="ReadMe.txt" />
@@ -22,9 +34,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="targetver.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="d3d11Wrapper.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="utils.h">
@@ -42,12 +51,30 @@
     <ClInclude Include="..\DXGIWrapper\dxgiSwapchain2.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\core\Call.h">
+      <Filter>Header Files\Stateful</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\Frame.h">
+      <Filter>Header Files\Stateful</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\Shader.h">
+      <Filter>Header Files\Stateful</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\Interfaces\Serialisable.h">
+      <Filter>Header Files\Interfaces</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\ShaderResources.h">
+      <Filter>Header Files\Stateful</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\Helpers\Helpers.h">
+      <Filter>Header Files\Helpers</Filter>
+    </ClInclude>
+    <ClInclude Include="d3d11ObjectManager.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="d3d11Wrapper.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="utils.cpp">
@@ -63,6 +90,15 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\DXGIWrapper\dxgiSwapchain2.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\Shader.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\Call.cpp">
+      <Filter>Source Files\Stateful</Filter>
+    </ClCompile>
+    <ClCompile Include="d3d11ObjectManager.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

@@ -6,31 +6,32 @@
 #include <d3d11_4.h>
 #include <d3d11on12.h>
 #include <fstream>
-#include "Engine.h"
 #include "d3d11Device.h"
-#include "d3d11Wrapper.h"
+#include "d3d11ObjectManager.h"
 
-//////////////////////////////////////////////////////////////////////////
-// Vertex Structure and TexCoord
-//
-struct FCAPVertex
-{
-	Vec3f position;
-	Vec2f texcoord;
-	FCAPVertex(Vec3f pos, Vec2f tex)
-	{
-		position = pos;
-		texcoord = tex;
-	}
-	FCAPVertex(float _x, float _y, float _z, float _u, float _v)
-	{
-		position.x = _x;
-		position.y = _y;
-		position.z = _z;
-		texcoord.x = _u;
-		texcoord.y = _v;
-	}
-};
+#include "../core/Frame.h"
+
+////////////////////////////////////////////////////////////////////////////
+//// Vertex Structure and TexCoord
+////
+//struct FCAPVertex
+//{
+//	Vec3f position;
+//	Vec2f texcoord;
+//	FCAPVertex(Vec3f pos, Vec2f tex)
+//	{
+//		position = pos;
+//		texcoord = tex;
+//	}
+//	FCAPVertex(float _x, float _y, float _z, float _u, float _v)
+//	{
+//		position.x = _x;
+//		position.y = _y;
+//		position.z = _z;
+//		texcoord.x = _u;
+//		texcoord.y = _v;
+//	}
+//};
 
 enum class ECaptureState : uint8_t
 {
@@ -43,26 +44,36 @@ enum class ECaptureState : uint8_t
 class D3D11CustomContext : public ID3D11DeviceContext
 {
 	friend class D3D11CustomDevice;
+private:
+	std::shared_ptr<std::vector<CFrame>> m_pvFrames;
 
 protected:
 	ID3D11DeviceContext *m_devContext;
-	D3D11CustomDevice *CustomDevice;
-	ECaptureState CurrentState;
-	D3D11Wrapper * ParentWrapper;
-	std::ofstream infoOutput;
+	D3D11CustomDevice *m_pFalseDevice;
+	ECaptureState m_eCurrentState;
+	D3DObjectManager *m_pGLOM;
 
-	// Callback
+
+	//std::ofstream infoOutput;
+	//std::ofstream vertexOutput;
+
+	//// Callback
+	//int SaveVBandIBFromDevice(ID3D11Device* Device, ID3D11DeviceContext* DevC, uint64_t * ibInUse = nullptr);
+	//int CheckVB(ID3D11Device* Device, ID3D11DeviceContext* DevC, UINT IndexCount, UINT StartIndexLocation, INT BaseVertexLocation);
+	//int DumpVSConstBuffer(ID3D11Device* Device, ID3D11DeviceContext *DevC, ID3D11Buffer * const * ppConstBuffer);
+	//int DumpVSConstBufferWithName(ID3D11Device* Device, ID3D11DeviceContext *DevC, ID3D11Buffer * const * ppConstBuffer, std::string name);
+	//void CaptureDraw();
+
+	// Notifications
 	void Notify_Present();
-	int SaveVBandIBFromDevice(ID3D11Device* Device, ID3D11DeviceContext* DevC);
-	int DumpVSConstBuffer(ID3D11Device* Device, ID3D11DeviceContext *DevC, ID3D11Buffer * const * ppConstBuffer);
-	int DumpVSConstBufferWithName(ID3D11Device* Device, ID3D11DeviceContext *DevC, ID3D11Buffer * const * ppConstBuffer, std::string name);
-	void CaptureDraw();
 
+	// Common init
+	void CommonInitialise();
 public:
 	virtual ~D3D11CustomContext() = default;
 	D3D11CustomContext(ID3D11DeviceContext *dev, ID3D11DeviceContext ***ret);
 	D3D11CustomContext(ID3D11DeviceContext *dev);
-	D3D11CustomContext(ID3D11DeviceContext *dev, D3D11CustomDevice *cdev, D3D11Wrapper * Parent);
+	D3D11CustomContext(ID3D11DeviceContext *dev, D3D11CustomDevice *cdev, D3DObjectManager * Parent);
 
 
 	void STDMETHODCALLTYPE VSSetConstantBuffers(
