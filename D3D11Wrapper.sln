@@ -11,6 +11,8 @@ Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
 		Debug|x86 = Debug|x86
+		DebugNoStack|x64 = DebugNoStack|x64
+		DebugNoStack|x86 = DebugNoStack|x86
 		DLL-Import Debug|x64 = DLL-Import Debug|x64
 		DLL-Import Debug|x86 = DLL-Import Debug|x86
 		DLL-Import Release|x64 = DLL-Import Release|x64
@@ -23,6 +25,10 @@ Global
 		{062E9188-D9CF-4B3E-8FB1-93EA4E4921BB}.Debug|x64.Build.0 = Debug|x64
 		{062E9188-D9CF-4B3E-8FB1-93EA4E4921BB}.Debug|x86.ActiveCfg = Debug|Win32
 		{062E9188-D9CF-4B3E-8FB1-93EA4E4921BB}.Debug|x86.Build.0 = Debug|Win32
+		{062E9188-D9CF-4B3E-8FB1-93EA4E4921BB}.DebugNoStack|x64.ActiveCfg = DebugNoStack|x64
+		{062E9188-D9CF-4B3E-8FB1-93EA4E4921BB}.DebugNoStack|x64.Build.0 = DebugNoStack|x64
+		{062E9188-D9CF-4B3E-8FB1-93EA4E4921BB}.DebugNoStack|x86.ActiveCfg = DebugNoStack|Win32
+		{062E9188-D9CF-4B3E-8FB1-93EA4E4921BB}.DebugNoStack|x86.Build.0 = DebugNoStack|Win32
 		{062E9188-D9CF-4B3E-8FB1-93EA4E4921BB}.DLL-Import Debug|x64.ActiveCfg = Debug|x64
 		{062E9188-D9CF-4B3E-8FB1-93EA4E4921BB}.DLL-Import Debug|x64.Build.0 = Debug|x64
 		{062E9188-D9CF-4B3E-8FB1-93EA4E4921BB}.DLL-Import Debug|x86.ActiveCfg = Debug|Win32
@@ -39,6 +45,10 @@ Global
 		{67FF9B38-606E-4551-93CB-3F318F48A7F4}.Debug|x64.Build.0 = Debug|x64
 		{67FF9B38-606E-4551-93CB-3F318F48A7F4}.Debug|x86.ActiveCfg = Debug|Win32
 		{67FF9B38-606E-4551-93CB-3F318F48A7F4}.Debug|x86.Build.0 = Debug|Win32
+		{67FF9B38-606E-4551-93CB-3F318F48A7F4}.DebugNoStack|x64.ActiveCfg = DebugNoStack|x64
+		{67FF9B38-606E-4551-93CB-3F318F48A7F4}.DebugNoStack|x64.Build.0 = DebugNoStack|x64
+		{67FF9B38-606E-4551-93CB-3F318F48A7F4}.DebugNoStack|x86.ActiveCfg = DebugNoStack|Win32
+		{67FF9B38-606E-4551-93CB-3F318F48A7F4}.DebugNoStack|x86.Build.0 = DebugNoStack|Win32
 		{67FF9B38-606E-4551-93CB-3F318F48A7F4}.DLL-Import Debug|x64.ActiveCfg = Debug|x64
 		{67FF9B38-606E-4551-93CB-3F318F48A7F4}.DLL-Import Debug|x64.Build.0 = Debug|x64
 		{67FF9B38-606E-4551-93CB-3F318F48A7F4}.DLL-Import Debug|x86.ActiveCfg = Debug|Win32

@@ -33,46 +33,33 @@
 //	}
 //};
 
-enum class ECaptureState : uint8_t
-{
-	Await,
-	WaitingForPresent,
-	Capture,
-	Finished
-};
+//enum class ECaptureState : uint8_t
+//{
+//	Await,
+//	WaitingForPresent,
+//	Capture,
+//	Finished
+//};
 
 class D3D11CustomContext : public ID3D11DeviceContext
 {
 	friend class D3D11CustomDevice;
-private:
-	std::shared_ptr<std::vector<CFrame>> m_pvFrames;
 
 protected:
 	ID3D11DeviceContext *m_devContext;
 	D3D11CustomDevice *m_pFalseDevice;
-	ECaptureState m_eCurrentState;
 	D3DObjectManager *m_pGLOM;
-
-
-	//std::ofstream infoOutput;
-	//std::ofstream vertexOutput;
-
-	//// Callback
-	//int SaveVBandIBFromDevice(ID3D11Device* Device, ID3D11DeviceContext* DevC, uint64_t * ibInUse = nullptr);
-	//int CheckVB(ID3D11Device* Device, ID3D11DeviceContext* DevC, UINT IndexCount, UINT StartIndexLocation, INT BaseVertexLocation);
-	//int DumpVSConstBuffer(ID3D11Device* Device, ID3D11DeviceContext *DevC, ID3D11Buffer * const * ppConstBuffer);
-	//int DumpVSConstBufferWithName(ID3D11Device* Device, ID3D11DeviceContext *DevC, ID3D11Buffer * const * ppConstBuffer, std::string name);
-	//void CaptureDraw();
 
 	// Notifications
 	void Notify_Present();
 
 	// Common init
 	void CommonInitialise();
+
 public:
 	virtual ~D3D11CustomContext() = default;
 	D3D11CustomContext(ID3D11DeviceContext *dev, ID3D11DeviceContext ***ret);
-	D3D11CustomContext(ID3D11DeviceContext *dev);
+	D3D11CustomContext(ID3D11DeviceContext *dev, D3DObjectManager* Parent);
 	D3D11CustomContext(ID3D11DeviceContext *dev, D3D11CustomDevice *cdev, D3DObjectManager * Parent);
 
 

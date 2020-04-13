@@ -4,6 +4,7 @@
 #include "Shader.h"
 #include "ShaderResources.h"
 #include "Interfaces/Serialisable.h"
+#include <filesystem>
 
 // Contains the frame abstraction
 // [Frame]	-> [Call] -> [Shader]	-> [Resource]
@@ -11,135 +12,171 @@
 //			-> [Call] -> [Shader]	-> [Resource]
 //			-> [Call] -> [Shader]	-> [Resource]
 
-class CCall : public Serialisable
+class CCall
 {
-	private:
+	public:
 		uint32_t m_uFrameNumber;
 
+		int32_t m_iIndexBuffer;
+		std::vector<int32_t> m_viVertexBuffers;
+		uint32_t m_eTopology;
+
 		// Vertex Shader
-		std::shared_ptr<CShader> m_pVertexShader;
+		int32_t m_iVertexShader;
 		FShaderResources m_stVertexResources;
 
 		// Hull Shader
-		std::shared_ptr<CShader> m_pHullShader;
+		int32_t m_iHullShader;
 		FShaderResources m_stHullResources;
 
 		// Domain Shader
-		std::shared_ptr<CShader> m_pDomainShader;
+		int32_t m_iDomainShader;
 		FShaderResources m_stDomainResources;
 
 		// Geometry Shader
-		std::shared_ptr<CShader> m_pGeometryShader;
+		int32_t m_iGeometryShader;
 		FShaderResources m_stGeometryResources;
 
 		// Pixel Shader
-		std::shared_ptr<CShader> m_pPixelShader;
+		int32_t m_iPixelShader;
 		FShaderResources m_stPixelResources;
+
+		// Computer Shader
+		int32_t m_iComputeShader;
+		FShaderResources m_stComputeResources;
 
 	//
 	public:
 		explicit CCall(uint32_t frameNumber);
 		~CCall();
 
+		//virtual void SerialiseSRV(std::filesystem::path writePath, D3DObjectManager* pGLOM, CResourceBacking* srvPtr, uint32_t uSRVIndex, enum class EShaderTypes eShaderType);
+		virtual void Serialise(std::filesystem::path writePath, class D3DObjectManager* pGLOM);
+
+		void FinaliseResource(class D3DObjectManager* pGLOM, FShaderResources* pSrv);
+		void Finalise(class D3DObjectManager* pGLOM);
+
 		///// ///// ////////// ///// /////
 		// Mimic DX Functions
 		//
 
-		/**
-		 *
-		 */
-		void SetVertexShader(std::shared_ptr<CShader> pShader);
+		void SetTopology(uint32_t eTopology);
 
 		/**
 		 *
 		 */
-		void SetHullShader(std::shared_ptr<CShader> pShader);
+		void SetVertexShader(int32_t pShader);
+
+		/**
+		 *
+		 */
+		void SetHullShader(int32_t pShader);
 
 		/**
 		 * 
 		 */
-		void SetDomainShader(std::shared_ptr<CShader> pShader);
+		void SetDomainShader(int32_t pShader);
 
 		/**
 		 * 
 		 */
-		void SetGeometryShader(std::shared_ptr<CShader> pShader);
+		void SetGeometryShader(int32_t pShader);
 
 		/**
 		 * 
 		 */
-		void SetPixelShader(std::shared_ptr<CShader> pShader);
-
-
-
+		void SetPixelShader(int32_t pShader);
 
 		/**
-		 * 
+		 *
 		 */
-		void AddVertexConstantBuffer(std::shared_ptr<std::vector<uint8_t>> pvBuffer);
-		/**
-		 * 
-		 */
-		void AddVertexSamplers(std::shared_ptr<std::vector<uint8_t>> pvBuffer);
-		/**
-		 * 
-		 */
-		void AddVertexShaderResources(std::shared_ptr<std::vector<uint8_t>> pvBuffer);
-
+		void SetComputeShader(int32_t pShader);
 
 		/**
-		 * 
+		 *
 		 */
-		void AddHullConstantBuffer(std::shared_ptr<std::vector<uint8_t>> pvBuffer);
+		void SetIndexBuffer(int32_t iBufferIndex);
 		/**
-		 * 
+		 *
 		 */
-		void AddHullSamplers(std::shared_ptr<std::vector<uint8_t>> pvBuffer);
-		/**
-		 * 
-		 */
-		void AddHullShaderResources(std::shared_ptr<std::vector<uint8_t>> pvBuffer);
+		void AddVertexBuffer(int32_t iBufferIndex);
+
 
 
 		/**
 		 * 
 		 */
-		void AddDomainConstantBuffer(std::shared_ptr<std::vector<uint8_t>> pvBuffer);
+		void AddVertexConstantBuffer(int32_t iBufferIndex);
 		/**
 		 * 
 		 */
-		void AddDomainSamplers(std::shared_ptr<std::vector<uint8_t>> pvBuffer);
+		void AddVertexSamplers(int32_t iBufferIndex);
 		/**
 		 * 
 		 */
-		void AddDomainShaderResources(std::shared_ptr<std::vector<uint8_t>> pvBuffer);
+		void AddVertexShaderResources(int32_t iBufferIndex);
 
 
 		/**
 		 * 
 		 */
-		void AddGeometryConstantBuffer(std::shared_ptr<std::vector<uint8_t>> pvBuffer);
+		void AddHullConstantBuffer(int32_t iBufferIndex);
 		/**
 		 * 
 		 */
-		void AddGeometrySamplers(std::shared_ptr<std::vector<uint8_t>> pvBuffer);
+		void AddHullSamplers(int32_t iBufferIndex);
 		/**
 		 * 
 		 */
-		void AddGeometryShaderResources(std::shared_ptr<std::vector<uint8_t>> pvBuffer);
+		void AddHullShaderResources(int32_t iBufferIndex);
 
 
 		/**
 		 * 
 		 */
-		void AddPixelConstantBuffer(std::shared_ptr<std::vector<uint8_t>> pvBuffer);
+		void AddDomainConstantBuffer(int32_t iBufferIndex);
 		/**
 		 * 
 		 */
-		void AddPixelSamplers(std::shared_ptr<std::vector<uint8_t>> pvBuffer);
+		void AddDomainSamplers(int32_t iBufferIndex);
 		/**
 		 * 
 		 */
-		void AddPixelShaderResources(std::shared_ptr<std::vector<uint8_t>> pvBuffer);
+		void AddDomainShaderResources(int32_t iBufferIndex);
+
+
+		/**
+		 * 
+		 */
+		void AddGeometryConstantBuffer(int32_t iBufferIndex);
+		/**
+		 * 
+		 */
+		void AddGeometrySamplers(int32_t iBufferIndex);
+		/**
+		 * 
+		 */
+		void AddGeometryShaderResources(int32_t iBufferIndex);
+
+
+		/**
+		 * 
+		 */
+		void AddPixelConstantBuffer(int32_t iBufferIndex);
+		/**
+		 * 
+		 */
+		void AddPixelSamplers(int32_t iBufferIndex);
+		/**
+		 * 
+		 */
+		void AddPixelShaderResources(int32_t iBufferIndex);
+
+		/**
+		 *
+		 */
+		void AddComputeConstantBuffer(int32_t iBufferIndex);
+
+		void AddComputeShaderResources(int32_t iBufferIndex);
 
 };

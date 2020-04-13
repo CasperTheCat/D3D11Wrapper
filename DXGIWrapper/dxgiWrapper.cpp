@@ -4,7 +4,8 @@
 
 DXGIWrapper::DXGIWrapper(): hD3D(nullptr), m_swapchain(nullptr), bIsDllValid(false)
 {
-
+	Event = std::ofstream("DXGI.log");
+	Event << this << std::endl;
 }
 
 DXGIWrapper::~DXGIWrapper()

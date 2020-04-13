@@ -4,7 +4,7 @@
 #include <string>
 #include <vector>
 //#include "lodepng.h"
-#include <d3dcompiler.h>
+
 #include <atomic>
 
 //extern int lastBufferByteWidth;
@@ -29,6 +29,22 @@ D3D11CustomDevice::D3D11CustomDevice(ID3D11Device* dev)
 	PostInitialise();
 }
 
+D3D11CustomDevice::D3D11CustomDevice(ID3D11Device* dev, ID3D11Device*** ret, D3DObjectManager *pGlOM)
+{
+	m_d3dDevice = dev;
+	m_pGLOM = pGlOM;
+	*ret = &m_d3dDevice;
+	PostInitialise();
+}
+
+D3D11CustomDevice::D3D11CustomDevice(ID3D11Device* dev, D3DObjectManager *pGlOM)
+{
+	m_d3dDevice = dev;
+	m_pGLOM = pGlOM;
+	PostInitialise();
+}
+
+
 void D3D11CustomDevice::PostInitialise()
 {
 	//m_pvpFrames = make_shared<vector<CFrame>>(vector<CFrame>());
@@ -43,24 +59,110 @@ void D3D11CustomDevice::PostInitialise()
 	//ILWrite = std::ofstream("InputLayouts.csv", std::ofstream::binary);
 	//ILWrite << "SemanticName,SemanticIndex,Format,InputSlot,AlignedByteOffset,InputSlotClass,InstanceDataStepRate" << std::endl;
 
-	m_log = std::ofstream("Device" + std::to_string(uint64_t(this)) + ".log", std::ofstream::binary);
+	//m_log = std::ofstream("Device" + std::to_string(uint64_t(this)) + ".log", std::ofstream::binary);
 }
 
 void D3D11CustomDevice::Notify_Present()
 {
+	m_pGLOM->Notify_Present();
 	if(CustomContext) CustomContext->Notify_Present();
 	else std::cout << "NotifyPresent Called on nullptr" << std::endl;
-
 }
 
-void D3D11CustomDevice::Link(D3D11CustomContext* devCon, std::shared_ptr<std::vector<CFrame>> frames)
+void D3D11CustomDevice::Link(D3D11CustomContext* devCon)
 {
 	CustomContext = devCon;
-	m_pvFrames = frames;
+}
+
+void D3D11CustomDevice::LocateSwapchain()
+{
+	IDXGIDevice2* pDXGIDevice;
+	auto hr = m_d3dDevice->QueryInterface(__uuidof(IDXGIDevice2), (void**)&pDXGIDevice);
+
+	IDXGIAdapter* pDXGIAdapter;
+	hr = pDXGIDevice->GetParent(__uuidof(IDXGIAdapter), (void**)&pDXGIAdapter);
+
+	IDXGIFactory2* pIDXGIFactory;
+	pDXGIAdapter->GetParent(__uuidof(IDXGIFactory2), (void**)&pIDXGIFactory);
+}
+
+ID3D11Device* D3D11CustomDevice::RealDevice()
+{
+	return m_d3dDevice;
+}
+
+ID3D11DeviceContext* D3D11CustomDevice::RealContext()
+{
+	return CustomContext->m_devContext;
+}
+
+D3DObjectManager* D3D11CustomDevice::GetGLOM()
+{
+	return m_pGLOM;
 }
 
 HRESULT D3D11CustomDevice::CreateBuffer(const D3D11_BUFFER_DESC* pDesc, const D3D11_SUBRESOURCE_DATA* pInitialData, ID3D11Buffer** ppBuffer)
 {
+	bool CPUHasAccess = true;
+	bool CanCaptureImmediate = false;
+	//D3D11_BUFFER_DESC falseDesc{};
+
+	//falseDesc.ByteWidth = pDesc->ByteWidth;
+	//
+	///////
+	//// Usage Handling
+	////
+	//auto bufferType = pDesc->Usage;
+	//falseDesc.Usage = pDesc->Usage;
+
+	switch(pDesc->Usage)
+	{
+	case D3D11_USAGE_DEFAULT:
+		break;
+	case D3D11_USAGE_IMMUTABLE:
+		CanCaptureImmediate = true;
+		break;
+	case D3D11_USAGE_DYNAMIC:
+		// We are going to lose this pointer if it gets passed
+		// This one needs changed
+		//falseDesc.Usage = D3D11_USAGE_STAGING;
+		break;
+	case D3D11_USAGE_STAGING:
+		break;
+	default:
+		break;
+	}
+
+
+	///////
+	//// BindFlags
+	////
+	//falseDesc.BindFlags = pDesc->BindFlags;
+
+
+	///////
+	//// CPU Access
+	//falseDesc.CPUAccessFlags = pDesc->CPUAccessFlags;
+	//falseDesc.MiscFlags = pDesc->MiscFlags;
+	//falseDesc.StructureByteStride = pDesc->StructureByteStride;
+
+	auto ret = m_d3dDevice->CreateBuffer(pDesc, pInitialData, ppBuffer);
+	if (ret == S_OK)
+	{
+		if (CanCaptureImmediate)
+		{
+			// Do immediate copy
+			m_pGLOM->AddBuffer(*ppBuffer, pInitialData->pSysMem, pDesc->ByteWidth, pDesc->BindFlags, this);
+		}
+		else
+		{
+			m_pGLOM->AddBuffer(*ppBuffer, nullptr, 0, pDesc->BindFlags, this);
+		}
+	}
+
+	
+	return ret;
+
 	//if(pDesc->BindFlags & D3D11_BIND_INDEX_BUFFER)
 	//{
 	//	std::cout << "Registering Index Buffer" << std::endl;
@@ -144,20 +246,65 @@ HRESULT D3D11CustomDevice::CreateBuffer(const D3D11_BUFFER_DESC* pDesc, const D3
 	//}
 
 	// Register the buffer with GLOM?
-
-
-
-	return m_d3dDevice->CreateBuffer(pDesc, pInitialData, ppBuffer);
 }
 
 HRESULT D3D11CustomDevice::CreateTexture1D(const D3D11_TEXTURE1D_DESC* pDesc, const D3D11_SUBRESOURCE_DATA* pInitialData, ID3D11Texture1D** ppTexture1D)
 {
-	return m_d3dDevice->CreateTexture1D(pDesc, pInitialData, ppTexture1D);
+	auto ret = m_d3dDevice->CreateTexture1D(pDesc, pInitialData, ppTexture1D);
+
+	// Only on success
+	if (ret == S_OK && pDesc->BindFlags == D3D11_BIND_SHADER_RESOURCE)
+	{
+		// Our texture information
+		FTextureInfo fTexInfo{};
+
+		bool CanCaptureImmediate = false;
+		if (pDesc->Usage == D3D11_USAGE_IMMUTABLE)
+		{
+			CanCaptureImmediate = true;
+			if (!pInitialData) { DEBUG_LOGLINE(m_pGLOM->Event, LOGERR("NULLPTR in immut. Texture")); }
+		}
+
+		// Mip handling?
+		// No, not yet, only 1 mip is assumed
+
+		fTexInfo.uWidth = pDesc->Width;
+		fTexInfo.uFormat = pDesc->Format;
+		fTexInfo.uCount = pDesc->ArraySize;
+
+		m_pGLOM->AddTexture(*ppTexture1D, pInitialData, fTexInfo, this, CanCaptureImmediate);
+	}
+
+	return ret;
 }
 
 HRESULT D3D11CustomDevice::CreateTexture2D(const D3D11_TEXTURE2D_DESC* pDesc, const D3D11_SUBRESOURCE_DATA* pInitialData, ID3D11Texture2D** ppTexture2D)
 {
-	DEBUG_LINE(m_log, "CreateTex2D Called");
+	auto ret = m_d3dDevice->CreateTexture2D(pDesc, pInitialData, ppTexture2D);
+
+	// Only on success
+	if (ret == S_OK && pDesc->BindFlags == D3D11_BIND_SHADER_RESOURCE)
+	{
+		// Our texture information
+		FTextureInfo fTexInfo{};
+
+		bool CanCaptureImmediate = false;
+		if (pDesc->Usage == D3D11_USAGE_IMMUTABLE)
+		{
+			CanCaptureImmediate = true;
+			if (!pInitialData) { DEBUG_LOGLINE(m_pGLOM->Event, LOGERR("NULLPTR in immut. Texture")); }
+		}
+
+		// Mip handling?
+		// No, not yet, only 1 mip is assumed
+
+		fTexInfo.uWidth = pDesc->Width;
+		fTexInfo.uHeight = pDesc->Height;
+		fTexInfo.uFormat = pDesc->Format;
+		fTexInfo.uCount = pDesc->ArraySize;
+
+		m_pGLOM->AddTexture(*ppTexture2D, pInitialData, fTexInfo, this, CanCaptureImmediate);
+	}
 
 	//if ((pDesc->Format == DXGI_FORMAT_R8G8B8A8_UNORM
 	//	|| pDesc->Format == DXGI_FORMAT_R8G8B8A8_UINT
@@ -177,7 +324,7 @@ HRESULT D3D11CustomDevice::CreateTexture2D(const D3D11_TEXTURE2D_DESC* pDesc, co
 	//	) && pInitialData != nullptr
 	//	)
 	//{
-	//	DEBUG_LINE(m_log, "Attempting writeout: " << t2dNumber);
+	//	DEBUG_LINE(p_GLOM->Event, LOG"Attempting writeout: " << t2dNumber);
 
 	//	std::ofstream ibOut(DirectoryPrefix + std::to_string(t2dNumber) + ".vmt2d", std::ofstream::binary);
 	//	const auto nonConstSysMem = const_cast<void *>(pInitialData->pSysMem);
@@ -189,19 +336,64 @@ HRESULT D3D11CustomDevice::CreateTexture2D(const D3D11_TEXTURE2D_DESC* pDesc, co
 	//	++t2dNumber;
 	//}
 	//
-	//DEBUG_LINE(m_log, "CreateTex2D Returning");
+	//DEBUG_LINE(p_GLOM->Event, LOG"CreateTex2D Returning");
 
-	return m_d3dDevice->CreateTexture2D(pDesc, pInitialData, ppTexture2D);
+	return ret;
 }
 
 HRESULT D3D11CustomDevice::CreateTexture3D(const D3D11_TEXTURE3D_DESC* pDesc, const D3D11_SUBRESOURCE_DATA* pInitialData, ID3D11Texture3D** ppTexture3D)
 {
-	return m_d3dDevice->CreateTexture3D(pDesc, pInitialData, ppTexture3D);
+	auto ret = m_d3dDevice->CreateTexture3D(pDesc, pInitialData, ppTexture3D);
+
+	// Only on success
+	if (ret == S_OK && pDesc->BindFlags == D3D11_BIND_SHADER_RESOURCE)
+	{
+		// Our texture information
+		FTextureInfo fTexInfo{};
+
+		bool CanCaptureImmediate = false;
+		if (pDesc->Usage == D3D11_USAGE_IMMUTABLE)
+		{
+			CanCaptureImmediate = true;
+			if (!pInitialData) { DEBUG_LOGLINE(m_pGLOM->Event, LOGERR("NULLPTR in immut. Texture")); }
+		}
+
+		// Mip handling?
+		// No, not yet, only 1 mip is assumed
+
+		fTexInfo.uWidth = pDesc->Width;
+		fTexInfo.uHeight = pDesc->Height;
+		fTexInfo.uDepth = pDesc->Depth;
+		fTexInfo.uFormat = pDesc->Format;
+
+		m_pGLOM->AddTexture(*ppTexture3D, pInitialData, fTexInfo, this, CanCaptureImmediate);
+	}
+
+	return ret;
 }
 
 HRESULT D3D11CustomDevice::CreateShaderResourceView(ID3D11Resource* pResource, const D3D11_SHADER_RESOURCE_VIEW_DESC* pDesc, ID3D11ShaderResourceView** ppSRView)
 {
-	return m_d3dDevice->CreateShaderResourceView(pResource, pDesc, ppSRView);
+	auto ret = m_d3dDevice->CreateShaderResourceView(pResource, pDesc, ppSRView);
+
+	if (ret == S_OK)
+	{
+		// Try all
+		int32_t val;
+		val = m_pGLOM->QueryBuffer(pResource);
+		if (val >= 0)
+		{
+			m_pGLOM->AddResourceView(*ppSRView, pResource, EBackingType::Buffer);
+		}
+		
+		val = m_pGLOM->QueryTexture(pResource);
+		if (val >= 0)
+		{
+			m_pGLOM->AddResourceView(*ppSRView, pResource, EBackingType::Texture);
+		}		
+	}
+
+	return ret;
 }
 
 HRESULT D3D11CustomDevice::CreateUnorderedAccessView(ID3D11Resource* pResource, const D3D11_UNORDERED_ACCESS_VIEW_DESC* pDesc, ID3D11UnorderedAccessView** ppUAView)
@@ -261,42 +453,67 @@ HRESULT D3D11CustomDevice::CreateVertexShader(const void* pShaderBytecode, SIZE_
 	//
 	//VSDWrite.write(reinterpret_cast<char*>(const_cast<void*>(disShader->GetBufferPointer())), disShader->GetBufferSize());
 
-	const auto ret = m_d3dDevice->CreateVertexShader(pShaderBytecode, BytecodeLength, pClassLinkage, ppVertexShader);
+	auto ret = m_d3dDevice->CreateVertexShader(pShaderBytecode, BytecodeLength, pClassLinkage, ppVertexShader);
 
-	//VertexShaderMap.emplace(std::make_pair(*ppVertexShader, nCapturedVSShaders));
-	//++nCapturedVSShaders;
+	if (ret == S_OK) { m_pGLOM->AddShader(*ppVertexShader, pShaderBytecode, BytecodeLength); }
 
 	return ret;
 }
 
 HRESULT D3D11CustomDevice::CreateGeometryShader(const void* pShaderBytecode, SIZE_T BytecodeLength, ID3D11ClassLinkage* pClassLinkage, ID3D11GeometryShader** ppGeometryShader)
 {
-	return m_d3dDevice->CreateGeometryShader(pShaderBytecode, BytecodeLength, pClassLinkage, ppGeometryShader);
+	auto ret = m_d3dDevice->CreateGeometryShader(pShaderBytecode, BytecodeLength, pClassLinkage, ppGeometryShader);
+
+	if (ret == S_OK) { m_pGLOM->AddShader(*ppGeometryShader, pShaderBytecode, BytecodeLength); }
+
+	return ret;
 }
 
 HRESULT D3D11CustomDevice::CreateGeometryShaderWithStreamOutput(const void* pShaderBytecode, SIZE_T BytecodeLength, const D3D11_SO_DECLARATION_ENTRY* pSODeclaration, UINT NumEntries, const UINT* pBufferStrides, UINT NumStrides, UINT RasterizedStream, ID3D11ClassLinkage* pClassLinkage, ID3D11GeometryShader** ppGeometryShader)
 {
-	return m_d3dDevice->CreateGeometryShaderWithStreamOutput(pShaderBytecode, BytecodeLength, pSODeclaration, NumEntries, pBufferStrides, NumStrides, RasterizedStream, pClassLinkage, ppGeometryShader);
+	auto ret = m_d3dDevice->CreateGeometryShaderWithStreamOutput(pShaderBytecode, BytecodeLength, pSODeclaration, NumEntries, pBufferStrides, NumStrides, RasterizedStream, pClassLinkage, ppGeometryShader);
+
+	DEBUG_LOGLINE(m_pGLOM->Event, LOG("This shader needs buffer binding: StreamOutput"));
+
+	if (ret == S_OK) { m_pGLOM->AddShader(*ppGeometryShader, pShaderBytecode, BytecodeLength); }
+
+	return ret;
 }
 
 HRESULT D3D11CustomDevice::CreatePixelShader(const void* pShaderBytecode, SIZE_T BytecodeLength, ID3D11ClassLinkage* pClassLinkage, ID3D11PixelShader** ppPixelShader)
 {
-	return m_d3dDevice->CreatePixelShader(pShaderBytecode, BytecodeLength, pClassLinkage, ppPixelShader);
+	auto ret = m_d3dDevice->CreatePixelShader(pShaderBytecode, BytecodeLength, pClassLinkage, ppPixelShader);
+
+	if (ret == S_OK) { m_pGLOM->AddShader(*ppPixelShader, pShaderBytecode, BytecodeLength); }
+
+	return ret;
 }
 
 HRESULT D3D11CustomDevice::CreateHullShader(const void* pShaderBytecode, SIZE_T BytecodeLength, ID3D11ClassLinkage* pClassLinkage, ID3D11HullShader** ppHullShader)
 {
-	return m_d3dDevice->CreateHullShader(pShaderBytecode, BytecodeLength, pClassLinkage, ppHullShader);
+	auto ret = m_d3dDevice->CreateHullShader(pShaderBytecode, BytecodeLength, pClassLinkage, ppHullShader);
+
+	if (ret == S_OK) { m_pGLOM->AddShader(*ppHullShader, pShaderBytecode, BytecodeLength); }
+
+	return ret;
 }
 
 HRESULT D3D11CustomDevice::CreateDomainShader(const void* pShaderBytecode, SIZE_T BytecodeLength, ID3D11ClassLinkage* pClassLinkage, ID3D11DomainShader** ppDomainShader)
 {
-	return m_d3dDevice->CreateDomainShader(pShaderBytecode, BytecodeLength, pClassLinkage, ppDomainShader);
+	auto ret = m_d3dDevice->CreateDomainShader(pShaderBytecode, BytecodeLength, pClassLinkage, ppDomainShader);
+
+	if (ret == S_OK) { m_pGLOM->AddShader(*ppDomainShader, pShaderBytecode, BytecodeLength); }
+
+	return ret;
 }
 
 HRESULT D3D11CustomDevice::CreateComputeShader(const void* pShaderBytecode, SIZE_T BytecodeLength, ID3D11ClassLinkage* pClassLinkage, ID3D11ComputeShader** ppComputeShader)
 {
-	return m_d3dDevice->CreateComputeShader(pShaderBytecode, BytecodeLength, pClassLinkage, ppComputeShader);
+	auto ret = m_d3dDevice->CreateComputeShader(pShaderBytecode, BytecodeLength, pClassLinkage, ppComputeShader);
+
+	if (ret == S_OK) { m_pGLOM->AddShader(*ppComputeShader, pShaderBytecode, BytecodeLength); }
+
+	return ret;
 }
 
 HRESULT D3D11CustomDevice::CreateClassLinkage(ID3D11ClassLinkage** ppLinkage)
@@ -430,8 +647,11 @@ UINT D3D11CustomDevice::GetExceptionMode()
 
 HRESULT D3D11CustomDevice::QueryInterface(const IID& riid, void** ppvObject)
 {
+	DEBUG_LOGLINE(m_pGLOM->Event, "[CF99] QI");
+
 	return m_d3dDevice->QueryInterface(riid, ppvObject);
 }
+
 
 ULONG D3D11CustomDevice::AddRef()
 {
@@ -442,5 +662,4 @@ ULONG D3D11CustomDevice::Release()
 {
 	return m_d3dDevice->Release();
 }
-
 

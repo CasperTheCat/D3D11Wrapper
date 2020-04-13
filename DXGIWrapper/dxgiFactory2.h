@@ -4,14 +4,49 @@
 #include <fstream>
 #include <d3d11_2.h>
 
-class DXGICustomFactory2 : public IDXGIFactory3
+class DXGICustomFactory2 : public IDXGIFactory6
 {
 protected:
 	IDXGIFactory3 *DxgiFactory;
-	std::ofstream Event;
+	DXGIWrapper* m_pLog;
 public:
-	DXGICustomFactory2(void* factory);
+	DXGICustomFactory2(void* factory, DXGIWrapper* log);
 	virtual ~DXGICustomFactory2();
+
+	// Fac6
+	virtual HRESULT STDMETHODCALLTYPE EnumAdapterByGpuPreference(
+		/* [annotation] */
+		_In_  UINT Adapter,
+		/* [annotation] */
+		_In_  DXGI_GPU_PREFERENCE GpuPreference,
+		/* [annotation] */
+		_In_  REFIID riid,
+		/* [annotation] */
+		_COM_Outptr_  void** ppvAdapter);
+
+	// Fac5
+	virtual HRESULT STDMETHODCALLTYPE CheckFeatureSupport(
+		DXGI_FEATURE Feature,
+		/* [annotation] */
+		_Inout_updates_bytes_(FeatureSupportDataSize)  void* pFeatureSupportData,
+		UINT FeatureSupportDataSize);
+
+	// Fac4
+	virtual HRESULT STDMETHODCALLTYPE EnumAdapterByLuid(
+		/* [annotation] */
+		_In_  LUID AdapterLuid,
+		/* [annotation] */
+		_In_  REFIID riid,
+		/* [annotation] */
+		_COM_Outptr_  void** ppvAdapter);
+
+	virtual HRESULT STDMETHODCALLTYPE EnumWarpAdapter(
+		/* [annotation] */
+		_In_  REFIID riid,
+		/* [annotation] */
+		_COM_Outptr_  void** ppvAdapter);
+
+
 
 	// IDXGIFactory3
 	virtual UINT STDMETHODCALLTYPE GetCreationFlags(void) override;

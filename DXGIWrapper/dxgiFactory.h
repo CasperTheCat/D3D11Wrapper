@@ -1,14 +1,15 @@
 #pragma once
 #include <dxgi.h>
 #include <fstream>
+#include "dxgiWrapper.h"
 
 class DXGICustomFactory : public IDXGIFactory
 {
 protected:
 	IDXGIFactory *DxgiFactory;
-	std::ofstream Event;
+	DXGIWrapper* m_pLog;
 public:
-	DXGICustomFactory(void* factory);
+	DXGICustomFactory(void* factory, DXGIWrapper *log);
 	virtual ~DXGICustomFactory();
 
 	virtual HRESULT STDMETHODCALLTYPE EnumAdapters(

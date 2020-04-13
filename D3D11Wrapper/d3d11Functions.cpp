@@ -6,6 +6,9 @@
 #include "Globals.h"
 #include "../DXGIWrapper/dxgiSwapchain2.h"
 
+
+#include <processenv.h>
+
 // Global Class
 D3DObjectManager *GlOM = new D3DObjectManager();
 
@@ -48,7 +51,7 @@ HRESULT WINAPI D3D11CreateDevice(
 		DEBUG_LOGLINE(GlOM->Event, LOG("Device Created. Registering."));
 		//d3dw->setDevice(*ppDevice);
 
-		const auto temp = new D3D11CustomDevice(*ppDevice);
+		const auto temp = new D3D11CustomDevice(*ppDevice, GlOM);
 		*ppDevice = temp;
 
 		// Check if the optional immediate is being used
@@ -61,7 +64,7 @@ HRESULT WINAPI D3D11CreateDevice(
 	} 
 	else
 	{
-		DEBUG_LOGLINE(GlOM->Event, LOGWAR("Failed to get device from D3D11"));
+		DEBUG_LOGLINE(GlOM->Event, LOGWARN("Failed to get device from D3D11"));
 	}
 
 	return out;
@@ -100,7 +103,7 @@ HRESULT WINAPI D3D11On12CreateDevice(
 	}
 	else
 	{
-		DEBUG_LOGLINE(GlOM->Event, LOGWAR("Failed to get device from D3D11"));
+		DEBUG_LOGLINE(GlOM->Event, LOGWARN("Failed to get device from D3D11"));
 	}
 	return out;
 }
@@ -128,29 +131,52 @@ HRESULT WINAPI D3D11CreateDeviceAndSwapChain(
 	__out_opt D3D_FEATURE_LEVEL* pFeatureLevel,
 	__out_opt ID3D11DeviceContext** ppImmediateContext)
 {
+	DEBUG_LOGLINE(GlOM->Event, LOG("D3D11CreateDeviceAndSwapChain intercepted"));
 	//MessageBox(NULL, L"Creating Device and SwapChain", L"D3D9Wrapper", MB_OK);
 	PFN_D3D11_CREATE_DEVICE_AND_SWAP_CHAIN createDev = (PFN_D3D11_CREATE_DEVICE_AND_SWAP_CHAIN)GetProcAddress(GlOM->getDLL(), "D3D11CreateDeviceAndSwapChain");
 	if (!createDev) return NULL;
 
 	HRESULT out = createDev(pAdapter, DriverType, Software, Flags, pFeatureLevels, FeatureLevels, SDKVersion,pSwapChainDesc,ppSwapChain, ppDevice, pFeatureLevel, ppImmediateContext);
-	if (ppDevice)
+	if (out == S_OK)
 	{
-		DEBUG_LOGLINE(GlOM->Event, LOG("Device Created"));
+		DEBUG_LOGLINE(GlOM->Event, LOG("CDSC Success"));
 		//GlOM->setDevice(*ppDevice);
 
-		const auto temp = new D3D11CustomDevice(*ppDevice);
-		*ppDevice = temp;
-
-		if (ppImmediateContext)
+		if (ppDevice)
 		{
-			ID3D11DeviceContext* tempCtx = new D3D11CustomContext(*ppImmediateContext, temp, GlOM);
-			*ppImmediateContext = tempCtx;
+			DEBUG_LOGLINE(GlOM->Event, LOG("CDSC Has Device"));
+			const auto temp = new D3D11CustomDevice(*ppDevice, GlOM);
+			*ppDevice = temp;
+
+			if (ppImmediateContext)
+			{
+				DEBUG_LOGLINE(GlOM->Event, LOG("CDSC Device + IM"));
+				ID3D11DeviceContext* tempCtx = new D3D11CustomContext(*ppImmediateContext, temp, GlOM);
+				*ppImmediateContext = tempCtx;
+			}
+
+			if (ppSwapChain)
+			{
+				DEBUG_LOGLINE(GlOM->Event, LOG("CDSC Device + SC"));
+				const auto tempSc = new DXGICustomSwapChain(*ppSwapChain, temp, GlOM);
+				*ppSwapChain = tempSc;
+			}
 		}
-
-		if (ppSwapChain)
+		else
 		{
-			const auto tempSc = new DXGICustomSwapChain2(*ppSwapChain, temp, GlOM);
-			*ppSwapChain = tempSc;
+			if (ppImmediateContext)
+			{
+				DEBUG_LOGLINE(GlOM->Event, LOG("CDSC IM"));
+				ID3D11DeviceContext* tempCtx = new D3D11CustomContext(*ppImmediateContext, GlOM);
+				*ppImmediateContext = tempCtx;
+			}
+
+			if (ppSwapChain)
+			{
+				DEBUG_LOGLINE(GlOM->Event, LOG("CDSC SC"));
+				const auto tempSc = new DXGICustomSwapChain(*ppSwapChain, nullptr, GlOM);
+				*ppSwapChain = tempSc;
+			}
 		}
 	}
 	return out;
@@ -198,6 +224,7 @@ HRESULT WINAPI CreateDXGIFactory1(REFIID riid, void **ppFactory)
 HRESULT WINAPI CreateDXGIFactory2(REFIID riid, void **ppFactory)
 {
 	//MessageBox(NULL, L"FactoryCreate2", L"D3D9Wrapper", MB_OK);
+	DEBUG_LOGLINE(GlOM->Event, LOG("CreateDXGIFactory2 intercepted"));
 	DXGIFAC pCreateFactory = (DXGIFAC)GetProcAddress(GlOM->getDLL(), "CreateDXGIFactory2");
 	if (!pCreateFactory)
 	{

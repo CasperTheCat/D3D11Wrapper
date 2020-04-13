@@ -6,9 +6,9 @@ class DXGICustomFactory1 : public IDXGIFactory1
 {
 protected:
 	IDXGIFactory1 *DxgiFactory;
-	std::ofstream Event;
+	DXGIWrapper* m_pLog;
 public:
-	DXGICustomFactory1(void* factory);
+	DXGICustomFactory1(void* factory, DXGIWrapper* log);
 	virtual ~DXGICustomFactory1();
 
 	// IDXGIFactory1

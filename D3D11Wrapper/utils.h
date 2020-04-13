@@ -1,8 +1,9 @@
 #pragma once
 #include <cstdint>
 #define LOG(x) "[INFO] " << x
+#define LOGWRT(x) "[WRTE] " << x
 #define LOGERR(x) "[ERRO] " << x
-#define LOGWAR(x) "[WARN] " << x
+#define LOGWARN(x) "[WARN] " << x
 
 
 bool IsWow64();

@@ -2,10 +2,12 @@
 #include "dxgiSwapchain2.h"
 #include "utils.h"
 
-DXGICustomFactory::DXGICustomFactory(void* factory)
+DXGICustomFactory::DXGICustomFactory(void* factory, DXGIWrapper* log)
 {
 	// Don't error for speed
 	DxgiFactory = reinterpret_cast<IDXGIFactory*>(factory);
+	m_pLog = log;
+	m_pLog->Event << "[CF00] CTOR" << std::endl;
 }
 
 DXGICustomFactory::~DXGICustomFactory()
@@ -29,7 +31,7 @@ HRESULT DXGICustomFactory::GetWindowAssociation(HWND* pWindowHandle)
 HRESULT DXGICustomFactory::CreateSwapChain(IUnknown* pDevice, DXGI_SWAP_CHAIN_DESC* pDesc, IDXGISwapChain** ppSwapChain)
 {
 	const auto temp = DxgiFactory->CreateSwapChain(pDevice, pDesc, ppSwapChain);
-	const auto tempSwapChain = new DXGICustomSwapChain2(*ppSwapChain, pDevice);
+	const auto tempSwapChain = new DXGICustomSwapChain(*ppSwapChain, pDevice, m_pLog);
 	*ppSwapChain = tempSwapChain;
 	return temp;
 }

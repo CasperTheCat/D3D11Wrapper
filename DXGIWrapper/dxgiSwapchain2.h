@@ -1,20 +1,64 @@
 #pragma once
 
-#include <dxgi1_3.h>
+#include <dxgi1_6.h>
 #include "../D3D11Wrapper/d3d11Device.h"
 #include "../D3D11Wrapper/d3d11ObjectManager.h"
+#include "dxgiWrapper.h"
 
-class DXGICustomSwapChain2 : public IDXGISwapChain2
+class DXGICustomSwapChain : public IDXGISwapChain4
 {
 protected:
-	IDXGISwapChain2 *DxgiSwapchain;
+	IDXGISwapChain *DxgiSwapchain;
 	// Custom Device is here directly because it gets notified
 	D3D11CustomDevice *CustomDevice;
 	D3DObjectManager *m_pGLOM;
+	class DXGIWrapper* m_pWrap;
 public:
-	DXGICustomSwapChain2(void * swapchain, IUnknown * dev);
-	DXGICustomSwapChain2(IDXGISwapChain* swapchain, ID3D11Device* dev, D3DObjectManager *glom);
-	virtual ~DXGICustomSwapChain2() = default;
+	DXGICustomSwapChain(void * swapchain, IUnknown * dev, class DXGIWrapper* log);
+	DXGICustomSwapChain(IDXGISwapChain* swapchain, ID3D11Device* dev, D3DObjectManager *glom);
+	virtual ~DXGICustomSwapChain() = default;
+
+	#pragma region DXGISwapChain4
+	virtual HRESULT STDMETHODCALLTYPE SetHDRMetaData(
+		/* [annotation][in] */
+		_In_  DXGI_HDR_METADATA_TYPE Type,
+		/* [annotation][in] */
+		_In_  UINT Size,
+		/* [annotation][size_is][in] */
+		_In_reads_opt_(Size)  void* pMetaData) override;
+
+	#pragma endregion
+
+	#pragma region DXGISwapChain3
+	virtual UINT STDMETHODCALLTYPE GetCurrentBackBufferIndex() override;
+
+	virtual HRESULT STDMETHODCALLTYPE CheckColorSpaceSupport(
+		/* [annotation][in] */
+		_In_  DXGI_COLOR_SPACE_TYPE ColorSpace,
+		/* [annotation][out] */
+		_Out_  UINT* pColorSpaceSupport) override;
+
+	virtual HRESULT STDMETHODCALLTYPE SetColorSpace1(
+		/* [annotation][in] */
+		_In_  DXGI_COLOR_SPACE_TYPE ColorSpace) override;
+
+	virtual HRESULT STDMETHODCALLTYPE ResizeBuffers1(
+		/* [annotation][in] */
+		_In_  UINT BufferCount,
+		/* [annotation][in] */
+		_In_  UINT Width,
+		/* [annotation][in] */
+		_In_  UINT Height,
+		/* [annotation][in] */
+		_In_  DXGI_FORMAT Format,
+		/* [annotation][in] */
+		_In_  UINT SwapChainFlags,
+		/* [annotation][in] */
+		_In_reads_(BufferCount)  const UINT* pCreationNodeMask,
+		/* [annotation][in] */
+		_In_reads_(BufferCount)  IUnknown* const* ppPresentQueue) override;
+
+	#pragma endregion
 
 	#pragma region DXGISwapChain2
 
