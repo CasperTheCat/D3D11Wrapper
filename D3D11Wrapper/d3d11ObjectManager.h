@@ -157,7 +157,7 @@ public:
 	//
 	void Notify_Present();
 
-	void Notify_Draw();
+	void Notify_Draw(UINT IndexCount, UINT StartIndexLocation, INT BaseVertexLocation);
 
 	///// ///// ////////// ///// /////
 	// Accessor

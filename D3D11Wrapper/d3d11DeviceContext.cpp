@@ -487,7 +487,7 @@ void D3D11CustomContext::DrawIndexed(UINT IndexCount, UINT StartIndexLocation, I
 
 	//++drawCallNumber;
 
-	m_pGLOM->Notify_Draw();
+	m_pGLOM->Notify_Draw(IndexCount, StartIndexLocation, BaseVertexLocation);
 	m_devContext->DrawIndexed(IndexCount, StartIndexLocation, BaseVertexLocation);
 }
 
@@ -501,7 +501,7 @@ void D3D11CustomContext::Draw(UINT VertexCount, UINT StartVertexLocation)
 
 	//CaptureDraw();
 	//++drawCallNumber;
-	m_pGLOM->Notify_Draw();
+	m_pGLOM->Notify_Draw(0, VertexCount, StartVertexLocation);
 	m_devContext->Draw(VertexCount, StartVertexLocation);
 }
 
@@ -587,7 +587,7 @@ void D3D11CustomContext::DrawIndexedInstanced(UINT IndexCountPerInstance, UINT I
 	//}
 
 	//++drawCallNumber;
-	m_pGLOM->Notify_Draw();
+	m_pGLOM->Notify_Draw(IndexCountPerInstance, StartIndexLocation, BaseVertexLocation);
 	m_devContext->DrawIndexedInstanced(IndexCountPerInstance, InstanceCount, StartIndexLocation, BaseVertexLocation, StartInstanceLocation);
 }
 
@@ -601,7 +601,7 @@ void D3D11CustomContext::DrawInstanced(UINT VertexCountPerInstance, UINT Instanc
 
 	//CaptureDraw();
 	//++drawCallNumber;
-	m_pGLOM->Notify_Draw();
+	m_pGLOM->Notify_Draw(0, VertexCountPerInstance, StartVertexLocation);
 	m_devContext->DrawInstanced(VertexCountPerInstance, InstanceCount, StartVertexLocation, StartInstanceLocation);
 }
 
@@ -697,19 +697,19 @@ void D3D11CustomContext::SOSetTargets(UINT NumBuffers, ID3D11Buffer* const* ppSO
 
 void D3D11CustomContext::DrawAuto()
 {
-	m_pGLOM->Notify_Draw();
+	m_pGLOM->Notify_Draw(-1,-1,-1);
 	m_devContext->DrawAuto();
 }
 
 void D3D11CustomContext::DrawIndexedInstancedIndirect(ID3D11Buffer* pBufferForArgs, UINT AlignedByteOffsetForArgs)
 {
-	m_pGLOM->Notify_Draw();
+	m_pGLOM->Notify_Draw(0,0,-1);
 	m_devContext->DrawIndexedInstancedIndirect(pBufferForArgs, AlignedByteOffsetForArgs);
 }
 
 void D3D11CustomContext::DrawInstancedIndirect(ID3D11Buffer* pBufferForArgs, UINT AlignedByteOffsetForArgs)
 {
-	m_pGLOM->Notify_Draw();
+	m_pGLOM->Notify_Draw(0,0,0);
 	m_devContext->DrawInstancedIndirect(pBufferForArgs, AlignedByteOffsetForArgs);
 }
 

@@ -42,6 +42,21 @@ void CCall::Serialise(std::filesystem::path writePath, D3DObjectManager* pGLOM)
 {
 	DEBUG_ONLY_PRINT("[WRTE] Serialising Call to path: " << writePath.string());
 
+	std::ofstream serial(writePath / "call.info", std::ios::out | std::ios::binary);
+	serial.write(
+		reinterpret_cast<char*>(&m_uIndexCount),
+		sizeof(uint32_t)
+	);
+	serial.write(
+		reinterpret_cast<char*>(&m_uStartIndexLocation),
+		sizeof(uint32_t)
+	);
+	serial.write(
+		reinterpret_cast<char*>(&m_iBaseVertexLocation),
+		sizeof(int32_t)
+	);
+	serial.close();
+
 	///// ///// ////////// ///// /////
 	// Draw Buffers
 	//
@@ -469,6 +484,13 @@ void CCall::Finalise(class D3DObjectManager* pGLOM)
 	FinaliseResource(pGLOM, &m_stGeometryResources);
 	FinaliseResource(pGLOM, &m_stPixelResources);
 	//FinaliseResource(pGLOM, &m_stComputeResources);
+}
+
+void CCall::SetInfo(UINT IndexCount, UINT StartIndexLocation, INT BaseVertexLocation)
+{
+	m_uIndexCount = IndexCount;
+	m_uStartIndexLocation = StartIndexLocation;
+	m_iBaseVertexLocation = BaseVertexLocation;
 }
 
 void CCall::SetTopology(uint32_t eTopology)

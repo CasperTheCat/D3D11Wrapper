@@ -186,11 +186,12 @@ void D3DObjectManager::Notify_Present()
 	}
 }
 
-void D3DObjectManager::Notify_Draw()
+void D3DObjectManager::Notify_Draw(UINT IndexCount, UINT StartIndexLocation, INT BaseVertexLocation)
 {
 	// We don't touch the arrays if no capture is occuring
 	if (m_eCaptureState == ECaptureState::Capturing)
 	{
+		GetCurrentFrame()->GetCurrentCall()->SetInfo(IndexCount, StartIndexLocation, BaseVertexLocation);
 		GetCurrentFrame()->GetCurrentCall()->Finalise(this);
 		
 		DEBUG_LINE(Event, LOG("Finalised draw call: " << GetCurrentFrame()->m_calls.size()));
@@ -203,7 +204,7 @@ void D3DObjectManager::Notify_Draw()
 		//curFrame.m_calls.emplace_back(m_vFrames->size());
 		curFrame->m_calls.push_back(CCall(m_vFrames.size()));
 
-		
+
 	}
 }
 

@@ -45,6 +45,10 @@ class CCall
 		int32_t m_iComputeShader;
 		FShaderResources m_stComputeResources;
 
+		uint32_t m_uIndexCount;
+		uint32_t m_uStartIndexLocation;
+		int32_t  m_iBaseVertexLocation;
+
 	//
 	public:
 		explicit CCall(uint32_t frameNumber);
@@ -55,6 +59,7 @@ class CCall
 
 		void FinaliseResource(class D3DObjectManager* pGLOM, FShaderResources* pSrv);
 		void Finalise(class D3DObjectManager* pGLOM);
+		void SetInfo(UINT IndexCount, UINT StartIndexLocation, INT BaseVertexLocation);
 
 		///// ///// ////////// ///// /////
 		// Mimic DX Functions
