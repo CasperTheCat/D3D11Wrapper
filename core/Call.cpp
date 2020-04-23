@@ -4,6 +4,20 @@
 
 #include "../D3D11Wrapper/d3d11ObjectManager.h"
 
+void CCall::Helper_AddBufferAtVectorLocation(std::vector<int32_t>& vec, int32_t iBufferIndex, uint32_t uSlotIndex)
+{
+	//DEBUG_ONLY_PRINT("[DEBG] v: " << vec.size() << " sl: " << uSlotIndex);
+	// Check if the vector *has* the index
+	if (uSlotIndex >= vec.size())
+	{
+		vec.resize(uSlotIndex + 1, -2);
+		//DEBUG_ONLY_PRINT("[DEBG] Expanding Size to " << vec.size() << " sl: " << uSlotIndex + 1);
+	}
+
+	//DEBUG_ONLY_PRINT("[DEBG] v: " << vec.size() << " sl: " << uSlotIndex);
+	vec[uSlotIndex] = iBufferIndex;
+}
+
 CCall::CCall(uint32_t frameNumber) :
 	m_eTopology(0xff),
 	m_iComputeShader(-2),
@@ -12,9 +26,56 @@ CCall::CCall(uint32_t frameNumber) :
 	m_iHullShader(-2),
 	m_iIndexBuffer(-2),
 	m_iPixelShader(-2),
-	m_iVertexShader(-2)
+	m_iVertexShader(-2),
+	m_uStartIndexLocation(0),
+	m_uIndexCount(0),
+	m_iBaseVertexLocation(0),
+	m_iInputLayout(1),
+	m_uDrawCallType(-1),
+	m_uFrameNumber(frameNumber)
 {
-	m_uFrameNumber = frameNumber;
+
+	// VertexBuffers
+}
+
+#define InitFromCopy(x) x(copy.x)
+#define CopyStructVector(x) x = copy.x
+
+CCall::CCall(const CCall& copy) :
+	InitFromCopy(m_eTopology),
+	InitFromCopy(m_iComputeShader),
+	InitFromCopy(m_iDomainShader),
+	InitFromCopy(m_iGeometryShader),
+	InitFromCopy(m_iHullShader),
+	InitFromCopy(m_iIndexBuffer),
+	InitFromCopy(m_iPixelShader),
+	InitFromCopy(m_iVertexShader),
+	InitFromCopy(m_uStartIndexLocation),
+	InitFromCopy(m_uIndexCount),
+	InitFromCopy(m_iBaseVertexLocation),
+	InitFromCopy(m_iInputLayout),
+	InitFromCopy(m_uDrawCallType),
+	m_uFrameNumber(copy.m_uFrameNumber + 1)
+{
+	// Structs
+	// IA
+	CopyStructVector(m_viVertexBuffers);
+
+	// CBs
+	CopyStructVector(m_stVertexResources.viConstantBuffers);
+	CopyStructVector(m_stHullResources.viConstantBuffers);
+	CopyStructVector(m_stDomainResources.viConstantBuffers);
+	CopyStructVector(m_stGeometryResources.viConstantBuffers);
+	CopyStructVector(m_stPixelResources.viConstantBuffers);
+
+	// SRVs
+	CopyStructVector(m_stVertexResources.viShaderResources);
+	CopyStructVector(m_stHullResources.viShaderResources);
+	CopyStructVector(m_stDomainResources.viShaderResources);
+	CopyStructVector(m_stGeometryResources.viShaderResources);
+	CopyStructVector(m_stPixelResources.viShaderResources);
+
+	CopyStructVector(m_vstVertexInvocationData);
 }
 
 CCall::~CCall()
@@ -55,7 +116,28 @@ void CCall::Serialise(std::filesystem::path writePath, D3DObjectManager* pGLOM)
 		reinterpret_cast<char*>(&m_iBaseVertexLocation),
 		sizeof(int32_t)
 	);
+	serial.write(
+		reinterpret_cast<char*>(&m_uDrawCallType),
+		sizeof(uint32_t)
+	);
+
+	for(uint32_t i = 0; i < m_vstVertexInvocationData.size(); ++i)
+	{
+		serial.write(
+			reinterpret_cast<char*>(&(m_vstVertexInvocationData[i].Stride)),
+			sizeof(uint32_t)
+		);
+		serial.write(
+			reinterpret_cast<char*>(&(m_vstVertexInvocationData[i].Offset)),
+			sizeof(uint32_t)
+		);
+	}
+
+	//DEBUG_LOGLINE(pGLOM->Event, "[WRTE] Checking vst: " << m_vstVertexInvocationData[0].Offset);
+
 	serial.close();
+
+	
 
 	///// ///// ////////// ///// /////
 	// Draw Buffers
@@ -77,6 +159,12 @@ void CCall::Serialise(std::filesystem::path writePath, D3DObjectManager* pGLOM)
 		}
 	}
 
+	//if (m_iInputLayout >= 0)
+	//{
+	//	DEBUG_LINE(pGLOM->Event, LOGWRT("Writing Input Layout"));
+	//	pGLOM->GetInputLayout(m_iInputLayout)->Serialise((writePath / "input.layout").string());
+	//}
+
 	///// ///// ////////// ///// /////
 	// Shaders
 	//
@@ -85,7 +173,7 @@ void CCall::Serialise(std::filesystem::path writePath, D3DObjectManager* pGLOM)
 	{
 		DEBUG_LINE(pGLOM->Event, LOGWRT("Writing Vertex Shader"));
 		pGLOM->GetShader(m_iVertexShader)->Serialise((writePath / ("vertex.shader")).string());
-		pGLOM->SerialiseShader(m_iVertexShader, (writePath / ("vertex.shader")).string());
+		//pGLOM->SerialiseShader(m_iVertexShader, (writePath / ("vertex.shader")).string());
 	}
 
 	if (m_iHullShader >= 0)
@@ -104,14 +192,14 @@ void CCall::Serialise(std::filesystem::path writePath, D3DObjectManager* pGLOM)
 	{
 		DEBUG_LINE(pGLOM->Event, LOGWRT("Writing Geometry Shader"));
 		pGLOM->GetShader(m_iGeometryShader)->Serialise((writePath / ("geometry.shader")).string());
-		pGLOM->SerialiseShader(m_iGeometryShader, (writePath / ("geometry.shader")).string());
+		//pGLOM->SerialiseShader(m_iGeometryShader, (writePath / ("geometry.shader")).string());
 	}
 
 	if (m_iPixelShader >= 0)
 	{
 		DEBUG_LINE(pGLOM->Event, LOGWRT("Writing Pixel Shader"));
 		pGLOM->GetShader(m_iPixelShader)->Serialise((writePath / ("pixel.shader")).string());
-		pGLOM->SerialiseShader(m_iPixelShader, (writePath / ("pixel.shader")).string());
+		//pGLOM->SerialiseShader(m_iPixelShader, (writePath / ("pixel.shader")).string());
 	}
 
 	if (m_iComputeShader >= 0)
@@ -477,25 +565,52 @@ void CCall::Finalise(class D3DObjectManager* pGLOM)
 	///// ///// ////////// ///// /////
 	// Resources
 	//
-
+	DEBUG_LINE(pGLOM->Event, LOGWRT("Vertex on Final"));
 	FinaliseResource(pGLOM, &m_stVertexResources);
+	DEBUG_LINE(pGLOM->Event, LOGWRT("Hull on Final"));
 	FinaliseResource(pGLOM, &m_stHullResources);
+	DEBUG_LINE(pGLOM->Event, LOGWRT("Domain on Final"));
 	FinaliseResource(pGLOM, &m_stDomainResources);
+	DEBUG_LINE(pGLOM->Event, LOGWRT("Geo on Final"));
 	FinaliseResource(pGLOM, &m_stGeometryResources);
+	DEBUG_LINE(pGLOM->Event, LOGWRT("Pixel on Final"));
 	FinaliseResource(pGLOM, &m_stPixelResources);
 	//FinaliseResource(pGLOM, &m_stComputeResources);
 }
 
-void CCall::SetInfo(UINT IndexCount, UINT StartIndexLocation, INT BaseVertexLocation)
+void CCall::SetInfo(UINT IndexCount, UINT StartIndexLocation, INT BaseVertexLocation, uint32_t uDrawCallType)
 {
 	m_uIndexCount = IndexCount;
 	m_uStartIndexLocation = StartIndexLocation;
 	m_iBaseVertexLocation = BaseVertexLocation;
+	m_uDrawCallType = uDrawCallType;
 }
 
 void CCall::SetTopology(uint32_t eTopology)
 {
 	m_eTopology = eTopology;
+}
+
+void CCall::SetVertexMeta(uint32_t SlotNumber, uint32_t Stride, uint32_t Offset)
+{
+	//DEBUG_ONLY_PRINT("[DEBG] v: " << vec.size() << " sl: " << uSlotIndex);
+	// Check if the vector *has* the index
+	if (SlotNumber >= m_vstVertexInvocationData.size())
+	{
+		m_vstVertexInvocationData.resize(SlotNumber + 1);
+		//DEBUG_ONLY_PRINT("[DEBG] Expanding Size to " << vec.size() << " sl: " << uSlotIndex + 1);
+	}
+
+	//DEBUG_ONLY_PRINT("[DEBG] v: " << m_vstVertexInvocationData.size() << " sl: " << SlotNumber);
+	FVertexInvocation temp{};
+
+	m_vstVertexInvocationData[SlotNumber].Offset = Offset;
+	m_vstVertexInvocationData[SlotNumber].Stride = Stride;
+}
+
+void CCall::SetLayout(int32_t iLayout)
+{
+	m_iInputLayout = iLayout;
 }
 
 void CCall::SetVertexShader(int32_t pShader)
@@ -528,73 +643,73 @@ void CCall::SetComputeShader(int32_t pShader)
 	m_iComputeShader = pShader;
 }
 
-void CCall::SetIndexBuffer(int32_t iBufferIndex)
+void CCall::SetIndexBuffer(int32_t iBufferIndex,  uint32_t uSlotIndex)
 {
 	m_iIndexBuffer = iBufferIndex;
 }
 
-void CCall::AddVertexBuffer(int32_t iBufferIndex)
+void CCall::AddVertexBuffer(int32_t iBufferIndex,  uint32_t uSlotIndex)
 {
-	m_viVertexBuffers.push_back(iBufferIndex);
+	Helper_AddBufferAtVectorLocation(m_viVertexBuffers, iBufferIndex, uSlotIndex);
 }
 
-void CCall::AddVertexConstantBuffer(int32_t iBufferIndex)
+void CCall::AddVertexConstantBuffer(int32_t iBufferIndex,  uint32_t uSlotIndex)
 {
-	m_stVertexResources.viConstantBuffers.push_back(iBufferIndex);
+	Helper_AddBufferAtVectorLocation(m_stVertexResources.viConstantBuffers, iBufferIndex, uSlotIndex);
 }
 
-void CCall::AddVertexShaderResources(int32_t iBufferIndex)
+void CCall::AddVertexShaderResources(int32_t iBufferIndex,  uint32_t uSlotIndex)
 {
-	m_stVertexResources.viShaderResources.push_back(iBufferIndex);
+	Helper_AddBufferAtVectorLocation(m_stVertexResources.viShaderResources, iBufferIndex, uSlotIndex);
 }
 
-void CCall::AddHullConstantBuffer(int32_t iBufferIndex)
+void CCall::AddHullConstantBuffer(int32_t iBufferIndex,  uint32_t uSlotIndex)
 {
-	m_stHullResources.viConstantBuffers.push_back(iBufferIndex);
+	Helper_AddBufferAtVectorLocation(m_stHullResources.viConstantBuffers, iBufferIndex, uSlotIndex);
 }
 
-void CCall::AddHullShaderResources(int32_t iBufferIndex)
+void CCall::AddHullShaderResources(int32_t iBufferIndex,  uint32_t uSlotIndex)
 {
-	m_stHullResources.viShaderResources.push_back(iBufferIndex);
+	Helper_AddBufferAtVectorLocation(m_stHullResources.viShaderResources, iBufferIndex, uSlotIndex);
 }
 
-void CCall::AddDomainConstantBuffer(int32_t iBufferIndex)
+void CCall::AddDomainConstantBuffer(int32_t iBufferIndex,  uint32_t uSlotIndex)
 {
-	m_stDomainResources.viConstantBuffers.push_back(iBufferIndex);
+	Helper_AddBufferAtVectorLocation(m_stDomainResources.viConstantBuffers, iBufferIndex, uSlotIndex);
 }
 
-void CCall::AddDomainShaderResources(int32_t iBufferIndex)
+void CCall::AddDomainShaderResources(int32_t iBufferIndex,  uint32_t uSlotIndex)
 {
-	m_stHullResources.viShaderResources.push_back(iBufferIndex);
+	Helper_AddBufferAtVectorLocation(m_stDomainResources.viShaderResources, iBufferIndex, uSlotIndex);
 }
 
-void CCall::AddGeometryConstantBuffer(int32_t iBufferIndex)
+void CCall::AddGeometryConstantBuffer(int32_t iBufferIndex,  uint32_t uSlotIndex)
 {
-	m_stGeometryResources.viConstantBuffers.push_back(iBufferIndex);
+	Helper_AddBufferAtVectorLocation(m_stGeometryResources.viConstantBuffers, iBufferIndex, uSlotIndex);
 }
 
-void CCall::AddGeometryShaderResources(int32_t iBufferIndex)
+void CCall::AddGeometryShaderResources(int32_t iBufferIndex,  uint32_t uSlotIndex)
 {
-	m_stGeometryResources.viShaderResources.push_back(iBufferIndex);
+	Helper_AddBufferAtVectorLocation(m_stGeometryResources.viShaderResources, iBufferIndex, uSlotIndex);
 }
 
-void CCall::AddPixelConstantBuffer(int32_t iBufferIndex)
+void CCall::AddPixelConstantBuffer(int32_t iBufferIndex,  uint32_t uSlotIndex)
 {
-	m_stPixelResources.viConstantBuffers.push_back(iBufferIndex);
+	Helper_AddBufferAtVectorLocation(m_stPixelResources.viConstantBuffers, iBufferIndex, uSlotIndex);
 }
 
-void CCall::AddPixelShaderResources(int32_t iBufferIndex)
+void CCall::AddPixelShaderResources(int32_t iBufferIndex,  uint32_t uSlotIndex)
 {
-	m_stPixelResources.viShaderResources.push_back(iBufferIndex);
+	Helper_AddBufferAtVectorLocation(m_stPixelResources.viShaderResources, iBufferIndex, uSlotIndex);
 }
 
-void CCall::AddComputeConstantBuffer(int32_t iBufferIndex)
+void CCall::AddComputeConstantBuffer(int32_t iBufferIndex,  uint32_t uSlotIndex)
 {
-	m_stComputeResources.viConstantBuffers.push_back(iBufferIndex);
+	Helper_AddBufferAtVectorLocation(m_stComputeResources.viConstantBuffers, iBufferIndex, uSlotIndex);
 }
 
-void CCall::AddComputeShaderResources(int32_t iBufferIndex)
+void CCall::AddComputeShaderResources(int32_t iBufferIndex,  uint32_t uSlotIndex)
 {
-	m_stComputeResources.viShaderResources.push_back(iBufferIndex);
+	Helper_AddBufferAtVectorLocation(m_stComputeResources.viShaderResources, iBufferIndex, uSlotIndex);
 }
 

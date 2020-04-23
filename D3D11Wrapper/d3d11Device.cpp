@@ -16,6 +16,8 @@
 
 //extern std::string DirectoryPrefix;
 
+std::atomic<uint32_t> badAtomicBufferCounter;
+
 D3D11CustomDevice::D3D11CustomDevice(ID3D11Device* dev, ID3D11Device*** ret)
 {
 	m_d3dDevice = dev;
@@ -103,7 +105,7 @@ D3DObjectManager* D3D11CustomDevice::GetGLOM()
 
 HRESULT D3D11CustomDevice::CreateBuffer(const D3D11_BUFFER_DESC* pDesc, const D3D11_SUBRESOURCE_DATA* pInitialData, ID3D11Buffer** ppBuffer)
 {
-	bool CPUHasAccess = true;
+	//bool CPUHasAccess = true;
 	bool CanCaptureImmediate = false;
 	//D3D11_BUFFER_DESC falseDesc{};
 
@@ -158,6 +160,29 @@ HRESULT D3D11CustomDevice::CreateBuffer(const D3D11_BUFFER_DESC* pDesc, const D3
 		{
 			m_pGLOM->AddBuffer(*ppBuffer, nullptr, 0, pDesc->BindFlags, this);
 		}
+
+		//if (pInitialData && pInitialData->pSysMem && pDesc->BindFlags & D3D11_BIND_VERTEX_BUFFER)
+		//{
+		//	auto hi = const_cast<D3D11_BUFFER_DESC*>(pDesc);
+		//	// Write
+		//	std::ofstream serial(std::to_string(badAtomicBufferCounter++) + ".vbuf", std::ios::out | std::ios::binary);
+
+		//	serial.write(
+		//		reinterpret_cast<char*>(&hi->StructureByteStride),
+		//		sizeof(uint32_t)
+		//	);
+
+		//	serial.write(
+		//		reinterpret_cast<char*>(&hi->ByteWidth),
+		//		sizeof(uint32_t)
+		//	);
+
+		//	serial.write(
+		//		reinterpret_cast<char*>(const_cast<void *>(pInitialData->pSysMem)),
+		//		pDesc->ByteWidth
+		//	);
+		//	serial.close();
+		//}
 	}
 
 	
@@ -426,6 +451,8 @@ HRESULT D3D11CustomDevice::CreateInputLayout(const D3D11_INPUT_ELEMENT_DESC* pIn
 	//ILWrite << ",,,,,," << std::endl;
 
 	const auto ret = m_d3dDevice->CreateInputLayout(pInputElementDescs, NumElements, pShaderBytecodeWithInputSignature, BytecodeLength, ppInputLayout);
+
+	if (ret == S_OK) { m_pGLOM->AddInputLayout(*ppInputLayout, pInputElementDescs, NumElements); }
 
 	//InputLayoutMap.emplace(std::make_pair(*ppInputLayout, bufferNumber));
 	//++bufferNumber;

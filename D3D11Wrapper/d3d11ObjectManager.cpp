@@ -45,7 +45,7 @@ D3DObjectManager::D3DObjectManager()
 	DEBUG_LOGLINE(Event, "[ARGS] " << lls);
 #endif
 
-	//m_vFrames.emplace_back();
+	m_vFrames.emplace_back();
 }
 
 D3DObjectManager::~D3DObjectManager()
@@ -62,7 +62,7 @@ void D3DObjectManager::WriteFrame()
 	{
 		auto fPtr = &m_vFrames[cf];
 		std::ostringstream ssFolderPath;
-		ssFolderPath << std::setfill('0') << std::setw(5) << cf;
+		ssFolderPath << std::setfill('0') << std::setw(5) << m_uFramenumber;
 		std::filesystem::path fspRelFolderPath(ssFolderPath.str());
 
 		for (uint32_t cc = 0; cc < fPtr->m_calls.size(); ++cc)
@@ -81,10 +81,12 @@ void D3DObjectManager::WriteFrame()
 			// Full Path
 			fCall->Serialise(fullPath, this);
 		}
+
+		m_uFramenumber++;
 	}
 
 	m_vFrames.clear();
-	//m_vFrames.emplace_back();
+	m_vFrames.emplace_back();
 }
 
 CFrame* D3DObjectManager::GetCurrentFrame()
@@ -135,7 +137,7 @@ void D3DObjectManager::Notify_Present()
 	case ECaptureState::Await:
 		if (GetAsyncKeyState(VK_DOWN) & 0x8000) { 
 			m_eCaptureState = ECaptureState::Capturing; 
-			m_vFrames.emplace_back(); // Prep new frame
+			//m_vFrames.emplace_back(); // Prep new frame
 		}
 		break;
 	case ECaptureState::WaitingForPresent:
@@ -144,12 +146,14 @@ void D3DObjectManager::Notify_Present()
 		m_eCaptureState = ECaptureState::Cooldown;
 		//[[FALLTHROUGH]]
 	case ECaptureState::Cooldown:
+		m_eWriteState = EWritebackState::Queued;
+
 		if (m_uCooldownFrames < 1)
 		{
 			if (!(GetAsyncKeyState(VK_DOWN) & 0x8000))
 			{
 				m_eCaptureState = ECaptureState::Await;
-				m_eWriteState = EWritebackState::Queued;
+				
 				m_uCooldownFrames = D3DObjectManager::m_uCooldownFrames;
 			}
 		}
@@ -174,6 +178,7 @@ void D3DObjectManager::Notify_Present()
 		// Data should be written
 		if (GetAsyncKeyState(VK_UP) & 0x8000) {
 			WriteFrame();
+			m_eWriteState = EWritebackState::Complete;
 		} // I think we can skip
 		break;
 	case EWritebackState::Complete:
@@ -186,31 +191,38 @@ void D3DObjectManager::Notify_Present()
 	}
 }
 
-void D3DObjectManager::Notify_Draw(UINT IndexCount, UINT StartIndexLocation, INT BaseVertexLocation)
+void D3DObjectManager::Notify_Draw(UINT IndexCount, UINT StartIndexLocation, INT BaseVertexLocation, ECallsTypes eCallTypes)
 {
 	// We don't touch the arrays if no capture is occuring
 	if (m_eCaptureState == ECaptureState::Capturing)
 	{
-		GetCurrentFrame()->GetCurrentCall()->SetInfo(IndexCount, StartIndexLocation, BaseVertexLocation);
+		GetCurrentFrame()->GetCurrentCall()->SetInfo(IndexCount, StartIndexLocation, BaseVertexLocation, static_cast<std::underlying_type<ECallsTypes>::type>(eCallTypes));
 		GetCurrentFrame()->GetCurrentCall()->Finalise(this);
 		
 		DEBUG_LINE(Event, LOG("Finalised draw call: " << GetCurrentFrame()->m_calls.size()));
 		
+		//auto nBuffers = // For BDO
 
 		// Emplace a new call
 		// raw
 		CFrame* curFrame = &m_vFrames[m_vFrames.size() - 1];
 		//m_vFrames.back();
 		//curFrame.m_calls.emplace_back(m_vFrames->size());
-		curFrame->m_calls.push_back(CCall(m_vFrames.size()));
-
-
+		//curFrame->m_calls.push_back(CCall(m_vFrames.size()));
+		curFrame->m_calls.emplace_back(GetCurrentFrame()->m_calls.back());
 	}
+}
+
+void D3DObjectManager::SetVertexMeta(uint32_t SlotNumber, uint32_t Stride, uint32_t Offset)
+{
+	auto curCall = GetCurrentFrame()->GetCurrentCall();
+
+	curCall->SetVertexMeta(SlotNumber, Stride, Offset);
 }
 
 void D3DObjectManager::SetTopology(uint32_t eTopology)
 {
-	if (m_eCaptureState == ECaptureState::Capturing)
+	if (true)//if (m_eCaptureState == ECaptureState::Capturing)
 	{
 
 		// Current Call
@@ -303,7 +315,7 @@ int32_t D3DObjectManager::QueryShader(void* pReturnPtr)
 
 void D3DObjectManager::SetShader(void* pReturnPtr, EShaderTypes eShaderType)
 {
-	if (m_eCaptureState == ECaptureState::Capturing)
+	if (true)//if (m_eCaptureState == ECaptureState::Capturing)
 	{
 		// Current Call
 		auto curCall = GetCurrentFrame()->GetCurrentCall();
@@ -443,9 +455,10 @@ int32_t D3DObjectManager::QueryBuffer(void* pReturnPtr)
 	}
 }
 
-void D3DObjectManager::SetBuffer(void* pReturnPtr, EBufferTypes eBufferType)
+void D3DObjectManager::SetBuffer(void* pReturnPtr, EBufferTypes eBufferType, uint32_t uSlotIndex)
 {
-	if (m_eCaptureState == ECaptureState::Capturing)
+	if (true)
+	//if (m_eCaptureState == ECaptureState::Capturing)
 	{
 		// Current Call
 		auto curCall = GetCurrentFrame()->GetCurrentCall();
@@ -454,28 +467,28 @@ void D3DObjectManager::SetBuffer(void* pReturnPtr, EBufferTypes eBufferType)
 		switch (eBufferType)
 		{
 		case EBufferTypes::Vertex:
-			curCall->AddVertexBuffer(bufferIndex);
+			curCall->AddVertexBuffer(bufferIndex,  uSlotIndex);
 			break;
 		case EBufferTypes::Index:
-			curCall->SetIndexBuffer(bufferIndex);
+			curCall->SetIndexBuffer(bufferIndex,  uSlotIndex);
 			break;
 		case EBufferTypes::VertexConstant:
-			curCall->AddVertexConstantBuffer(bufferIndex);
+			curCall->AddVertexConstantBuffer(bufferIndex,  uSlotIndex);
 			break;
 		case EBufferTypes::HullConstant:
-			curCall->AddHullConstantBuffer(bufferIndex);
+			curCall->AddHullConstantBuffer(bufferIndex,  uSlotIndex);
 			break;
 		case EBufferTypes::DomainConstant:
-			curCall->AddDomainConstantBuffer(bufferIndex);
+			curCall->AddDomainConstantBuffer(bufferIndex,  uSlotIndex);
 			break;
 		case EBufferTypes::GeometryConstant:
-			curCall->AddGeometryConstantBuffer(bufferIndex);
+			curCall->AddGeometryConstantBuffer(bufferIndex,  uSlotIndex);
 			break;
 		case EBufferTypes::PixelConstant:
-			curCall->AddPixelConstantBuffer(bufferIndex);
+			curCall->AddPixelConstantBuffer(bufferIndex,  uSlotIndex);
 			break;
 		case EBufferTypes::ComputeConstant:
-			curCall->AddComputeConstantBuffer(bufferIndex);
+			curCall->AddComputeConstantBuffer(bufferIndex,  uSlotIndex);
 			break;
 		case EBufferTypes::TOTAL_SHADER_TYPES:
 			break;
@@ -528,7 +541,7 @@ int32_t D3DObjectManager::QueryTexture(void* pReturnPtr)
 	auto loc = m_mTextures.find(pReturnPtr);
 	if (loc == m_mTextures.end())
 	{
-		DEBUG_LOGLINE(Event, LOGWARN("Engine appears to have temporal Texture pointers!"));
+		//DEBUG_LOGLINE(Event, LOGWARN("Engine appears to have temporal Texture pointers!"));
 		return INT32_MIN;
 	}
 	else
@@ -587,7 +600,7 @@ int32_t D3DObjectManager::QueryResourceView(void* pReturnPtr)
 	auto loc = m_mShaderResources.find(pReturnPtr);
 	if (loc == m_mShaderResources.end())
 	{
-		DEBUG_LOGLINE(Event, LOGWARN("Engine appears to have temporal SRV pointers!"));
+		//DEBUG_LOGLINE(Event, LOGWARN("Engine appears to have temporal SRV pointers!"));
 		return INT32_MIN;
 	}
 	else
@@ -598,9 +611,12 @@ int32_t D3DObjectManager::QueryResourceView(void* pReturnPtr)
 	}
 }
 
-void D3DObjectManager::SetResourceView(void* pReturnPtr, ESRVTypes eBufferType)
+void D3DObjectManager::SetResourceView(void* pReturnPtr, ESRVTypes eBufferType, uint32_t uSlotIndex)
 {
-	if (m_eCaptureState == ECaptureState::Capturing)
+	//DEBUG_LOGLINE(Event, LOG("SRV at slot: " << uSlotIndex));
+
+	if (true)
+	//if (m_eCaptureState == ECaptureState::Capturing)
 	{
 		// Current Call
 		auto curCall = GetCurrentFrame()->GetCurrentCall();
@@ -609,22 +625,22 @@ void D3DObjectManager::SetResourceView(void* pReturnPtr, ESRVTypes eBufferType)
 		switch (eBufferType)
 		{
 		case ESRVTypes::VertexSRV:
-			curCall->AddVertexShaderResources(SRVIndex);
+			curCall->AddVertexShaderResources(SRVIndex,  uSlotIndex);
 			break;
 		case ESRVTypes::HullSRV:
-			curCall->AddHullShaderResources(SRVIndex);
+			curCall->AddHullShaderResources(SRVIndex,  uSlotIndex);
 			break;
 		case ESRVTypes::DomainSRV:
-			curCall->AddDomainShaderResources(SRVIndex);
+			curCall->AddDomainShaderResources(SRVIndex,  uSlotIndex);
 			break;
 		case ESRVTypes::GeometrySRV:
-			curCall->AddGeometryShaderResources(SRVIndex);
+			curCall->AddGeometryShaderResources(SRVIndex,  uSlotIndex);
 			break;
 		case ESRVTypes::PixelSRV:
-			curCall->AddPixelShaderResources(SRVIndex);
+			curCall->AddPixelShaderResources(SRVIndex,  uSlotIndex);
 			break;
 		case ESRVTypes::ComputeSRV:
-			curCall->AddComputeShaderResources(SRVIndex);
+			curCall->AddComputeShaderResources(SRVIndex,  uSlotIndex);
 			break;
 		case ESRVTypes::TOTAL_SHADER_TYPES:
 			break;
@@ -637,6 +653,85 @@ void D3DObjectManager::SetResourceView(void* pReturnPtr, ESRVTypes eBufferType)
 CResourceBacking* D3DObjectManager::GetResourceView(uint32_t iSRVIndex)
 {
 	return &m_vShaderResourceBackings[iSRVIndex];
+}
+
+void D3DObjectManager::AddInputLayout(void* pReturnPtr, const D3D11_INPUT_ELEMENT_DESC* pElements, uint32_t uNumElements)
+{
+	// Sanity
+	if (!pReturnPtr)
+	{
+		DEBUG_LOGLINE(Event, LOGERR("AddInputLayout called with bad return pointer"));
+		return;
+	}
+
+	SCOPED_LOCK(m_mtxInputLayouts);
+
+	auto loc = m_mInputLayouts.find(pReturnPtr);
+	if (loc == m_mInputLayouts.end())
+	{
+		if (m_vInputLayouts.size() > INT32_MAX) { return; }
+
+		int32_t layoutIndex = static_cast<int32_t>(m_vInputLayouts.size());
+		m_mInputLayouts.emplace(pReturnPtr, layoutIndex);
+
+		m_vInputLayouts.emplace_back(pReturnPtr, pElements, uNumElements);
+		//m_vShaders.emplace_back(pReturnPtr, pBytecode, uBytecodeLength);
+		DEBUG_LOGLINE(Event, LOG("Layout registered to ID: " << layoutIndex));
+
+		//// Write out !
+		//std::ostringstream ssShaderName;
+		//ssShaderName << std::setfill('0') << std::setw(5) << layoutIndex << ".html";
+		//std::filesystem::path fspShaders("ias");
+		//std::filesystem::path fspRelCallPath(ssShaderName.str());
+
+		//m_vInputLayouts.back().Serialise((m_fspRoot / fspShaders / fspRelCallPath).string());
+	}
+	else
+	{
+		// Object exists... Do a comparison on the data?
+		//DEBUG_LOGLINE(Event, LOGWARN("SRV seen before. ID: " << loc->second << ". Next Index: " << m_vShaderResourceBackings.size()));
+	}
+}
+
+int32_t D3DObjectManager::QueryInputLayout(void* pReturnPtr)
+{
+	if (!pReturnPtr)
+	{
+		return -1;
+	}
+
+	SCOPED_LOCK(m_mtxInputLayouts);
+
+	auto loc = m_mInputLayouts.find(pReturnPtr);
+	if (loc == m_mInputLayouts.end())
+	{
+		DEBUG_LOGLINE(Event, LOGWARN("Engine appears to have temporal Layout pointers!"));
+		return INT32_MIN;
+	}
+	else
+	{
+		// Object exists... Do a comparison on the data?
+		//DEBUG_LOGLINE(Event, LOG("SRV known as ID: " << loc->second));
+		return loc->second;
+	}
+}
+
+void D3DObjectManager::SetInputLayout(void* pReturnPtr)
+{
+	if (true)
+	//if (m_eCaptureState == ECaptureState::Capturing)
+	{
+		// Current Call
+		auto curCall = GetCurrentFrame()->GetCurrentCall();
+		auto LayoutIndex = QueryInputLayout(pReturnPtr);
+
+		curCall->SetLayout(LayoutIndex);
+	}
+}
+
+CInputLayout* D3DObjectManager::GetInputLayout(uint32_t iLayoutIndex)
+{
+	return &m_vInputLayouts[iLayoutIndex];
 }
 
 //void D3DObjectManager::setDevice(ID3D11Device* dev)

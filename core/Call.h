@@ -12,6 +12,12 @@
 //			-> [Call] -> [Shader]	-> [Resource]
 //			-> [Call] -> [Shader]	-> [Resource]
 
+struct FVertexInvocation
+{
+	uint32_t Stride;
+	uint32_t Offset;
+};
+
 class CCall
 {
 	public:
@@ -19,6 +25,7 @@ class CCall
 
 		int32_t m_iIndexBuffer;
 		std::vector<int32_t> m_viVertexBuffers;
+		std::vector<FVertexInvocation> m_vstVertexInvocationData;
 		uint32_t m_eTopology;
 
 		// Vertex Shader
@@ -45,13 +52,21 @@ class CCall
 		int32_t m_iComputeShader;
 		FShaderResources m_stComputeResources;
 
+		// IA
+		int32_t m_iInputLayout;
+
 		uint32_t m_uIndexCount;
 		uint32_t m_uStartIndexLocation;
 		int32_t  m_iBaseVertexLocation;
+		uint32_t m_uDrawCallType;
+
+
+		void Helper_AddBufferAtVectorLocation(std::vector<int32_t>& vec, int32_t iBufferIndex, uint32_t uSlotIndex);
 
 	//
 	public:
 		explicit CCall(uint32_t frameNumber);
+		CCall(const CCall& copy);
 		~CCall();
 
 		//virtual void SerialiseSRV(std::filesystem::path writePath, D3DObjectManager* pGLOM, CResourceBacking* srvPtr, uint32_t uSRVIndex, enum class EShaderTypes eShaderType);
@@ -59,13 +74,16 @@ class CCall
 
 		void FinaliseResource(class D3DObjectManager* pGLOM, FShaderResources* pSrv);
 		void Finalise(class D3DObjectManager* pGLOM);
-		void SetInfo(UINT IndexCount, UINT StartIndexLocation, INT BaseVertexLocation);
+		void SetInfo(UINT IndexCount, UINT StartIndexLocation, INT BaseVertexLocation, uint32_t uDrawCallType);
+
 
 		///// ///// ////////// ///// /////
 		// Mimic DX Functions
 		//
 
 		void SetTopology(uint32_t eTopology);
+		void SetVertexMeta(uint32_t SlotNumber, uint32_t Stride, uint32_t Offset);
+		void SetLayout(int32_t iLayout);
 
 		/**
 		 *
@@ -100,88 +118,88 @@ class CCall
 		/**
 		 *
 		 */
-		void SetIndexBuffer(int32_t iBufferIndex);
+		void SetIndexBuffer(int32_t iBufferIndex,  uint32_t uSlotIndex);
 		/**
 		 *
 		 */
-		void AddVertexBuffer(int32_t iBufferIndex);
+		void AddVertexBuffer(int32_t iBufferIndex,  uint32_t uSlotIndex);
 
 
 
 		/**
 		 * 
 		 */
-		void AddVertexConstantBuffer(int32_t iBufferIndex);
+		void AddVertexConstantBuffer(int32_t iBufferIndex,  uint32_t uSlotIndex);
 		/**
 		 * 
 		 */
-		void AddVertexSamplers(int32_t iBufferIndex);
+		void AddVertexSamplers(int32_t iBufferIndex,  uint32_t uSlotIndex);
 		/**
 		 * 
 		 */
-		void AddVertexShaderResources(int32_t iBufferIndex);
+		void AddVertexShaderResources(int32_t iBufferIndex,  uint32_t uSlotIndex);
 
 
 		/**
 		 * 
 		 */
-		void AddHullConstantBuffer(int32_t iBufferIndex);
+		void AddHullConstantBuffer(int32_t iBufferIndex,  uint32_t uSlotIndex);
 		/**
 		 * 
 		 */
-		void AddHullSamplers(int32_t iBufferIndex);
+		void AddHullSamplers(int32_t iBufferIndex,  uint32_t uSlotIndex);
 		/**
 		 * 
 		 */
-		void AddHullShaderResources(int32_t iBufferIndex);
+		void AddHullShaderResources(int32_t iBufferIndex,  uint32_t uSlotIndex);
 
 
 		/**
 		 * 
 		 */
-		void AddDomainConstantBuffer(int32_t iBufferIndex);
+		void AddDomainConstantBuffer(int32_t iBufferIndex,  uint32_t uSlotIndex);
 		/**
 		 * 
 		 */
-		void AddDomainSamplers(int32_t iBufferIndex);
+		void AddDomainSamplers(int32_t iBufferIndex,  uint32_t uSlotIndex);
 		/**
 		 * 
 		 */
-		void AddDomainShaderResources(int32_t iBufferIndex);
+		void AddDomainShaderResources(int32_t iBufferIndex,  uint32_t uSlotIndex);
 
 
 		/**
 		 * 
 		 */
-		void AddGeometryConstantBuffer(int32_t iBufferIndex);
+		void AddGeometryConstantBuffer(int32_t iBufferIndex,  uint32_t uSlotIndex);
 		/**
 		 * 
 		 */
-		void AddGeometrySamplers(int32_t iBufferIndex);
+		void AddGeometrySamplers(int32_t iBufferIndex,  uint32_t uSlotIndex);
 		/**
 		 * 
 		 */
-		void AddGeometryShaderResources(int32_t iBufferIndex);
+		void AddGeometryShaderResources(int32_t iBufferIndex,  uint32_t uSlotIndex);
 
 
 		/**
 		 * 
 		 */
-		void AddPixelConstantBuffer(int32_t iBufferIndex);
+		void AddPixelConstantBuffer(int32_t iBufferIndex,  uint32_t uSlotIndex);
 		/**
 		 * 
 		 */
-		void AddPixelSamplers(int32_t iBufferIndex);
+		void AddPixelSamplers(int32_t iBufferIndex,  uint32_t uSlotIndex);
 		/**
 		 * 
 		 */
-		void AddPixelShaderResources(int32_t iBufferIndex);
+		void AddPixelShaderResources(int32_t iBufferIndex,  uint32_t uSlotIndex);
 
 		/**
 		 *
 		 */
-		void AddComputeConstantBuffer(int32_t iBufferIndex);
+		void AddComputeConstantBuffer(int32_t iBufferIndex,  uint32_t uSlotIndex);
 
-		void AddComputeShaderResources(int32_t iBufferIndex);
+		void AddComputeShaderResources(int32_t iBufferIndex,  uint32_t uSlotIndex);
 
 };

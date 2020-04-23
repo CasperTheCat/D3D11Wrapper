@@ -22,6 +22,7 @@
 #include "../core/Shader.h"
 #include "../core/ShaderResources.h"
 #include "../core/Texture.h"
+#include "../core/InputLayout.h"
 
 #include <atomic>
 #include <filesystem>
@@ -70,6 +71,19 @@ enum class EShaderTypes : uint8_t
 	TOTAL_SHADER_TYPES
 };
 
+enum class ECallsTypes : uint8_t
+{
+	Draw,
+	DrawInstanced,
+	DrawIndexed,
+	DrawIndexedInstanced,
+	DrawIndexedInstancedIndirect,
+	DrawInstancedIndirect,
+	DrawAuto,
+
+	TOTAL_SHADER_TYPES
+};
+
 enum class EBufferTypes : uint8_t
 {
 	Vertex,
@@ -109,6 +123,10 @@ private:
 	std::mutex m_mtxShaderResources;
 	std::unordered_map<void*, int32_t> m_mShaderResources;
 	std::vector<CResourceBacking> m_vShaderResourceBackings;
+
+	std::mutex m_mtxInputLayouts;
+	std::unordered_map<void*, int32_t> m_mInputLayouts;
+	std::vector<CInputLayout> m_vInputLayouts;
 
 	std::mutex m_mtxBuffers;
 	std::unordered_map<void*, int32_t> m_mBuffers;
@@ -157,7 +175,8 @@ public:
 	//
 	void Notify_Present();
 
-	void Notify_Draw(UINT IndexCount, UINT StartIndexLocation, INT BaseVertexLocation);
+	void Notify_Draw(UINT IndexCount, UINT StartIndexLocation, INT BaseVertexLocation, ECallsTypes eCallTypes);
+	void SetVertexMeta(uint32_t SlotNumber, uint32_t Stride, uint32_t Offset);
 
 	///// ///// ////////// ///// /////
 	// Accessor
@@ -186,7 +205,7 @@ public:
 	 */
 	void AddBuffer(void* pReturnPtr, const void* pData, uint64_t uDataSize, uint32_t uBindType, class D3D11CustomDevice* pOwningDevice);
 	int32_t QueryBuffer(void* pReturnPtr);
-	void SetBuffer(void* pReturnPtr, EBufferTypes eBufferType);
+	void SetBuffer(void* pReturnPtr, EBufferTypes eBufferType, uint32_t uSlotIndex);
 	CBuffer* GetBuffer(uint32_t iBufferIndex);
 
 	/**
@@ -201,7 +220,15 @@ public:
 	 */
 	void AddResourceView(void* pReturnPtr, const void* pResPtr, EBackingType eBackingType);
 	int32_t QueryResourceView(void* pReturnPtr);
-	void SetResourceView(void* pReturnPtr, ESRVTypes eBufferType);
+	void SetResourceView(void* pReturnPtr, ESRVTypes eBufferType, uint32_t uSlotIndex);
 	CResourceBacking* GetResourceView(uint32_t iSRVIndex);
+
+	/**
+	 * InputLayouts
+	 */
+	void AddInputLayout(void* pReturnPtr, const D3D11_INPUT_ELEMENT_DESC* pElements, uint32_t uNumElements);
+	int32_t QueryInputLayout(void* pReturnPtr);
+	void SetInputLayout(void* pReturnPtr);
+	CInputLayout* GetInputLayout(uint32_t iLayoutIndex);
 
 };

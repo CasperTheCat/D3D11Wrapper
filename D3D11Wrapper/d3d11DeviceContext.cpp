@@ -14,6 +14,8 @@ std::string DirectoryPrefix = "VMRDATA\\";
 
 //extern D3DObjectManager *m_pGLOM;
 
+
+
 void D3D11CustomContext::Notify_Present()
 {
 	////std::cout << "Present Notify" << std::endl;
@@ -387,7 +389,7 @@ void D3D11CustomContext::VSSetConstantBuffers(UINT StartSlot, UINT NumBuffers, I
 {
 	for (uint32_t i = 0; i < NumBuffers; ++i)
 	{
-		m_pGLOM->SetBuffer(ppConstantBuffers[i], EBufferTypes::VertexConstant);
+		m_pGLOM->SetBuffer(ppConstantBuffers[i], EBufferTypes::VertexConstant, StartSlot + i);
 	}
 	
 	//if (CurrentState == ECaptureState::Capture)
@@ -419,7 +421,7 @@ void D3D11CustomContext::PSSetShaderResources(UINT StartSlot, UINT NumViews, ID3
 
 	for (uint32_t i = 0; i < NumViews; ++i)
 	{
-		m_pGLOM->SetResourceView(ppShaderResourceViews[i], ESRVTypes::PixelSRV);
+		m_pGLOM->SetResourceView(ppShaderResourceViews[i], ESRVTypes::PixelSRV, StartSlot + i);
 	}
 
 	m_devContext->PSSetShaderResources(StartSlot, NumViews, ppShaderResourceViews);
@@ -487,7 +489,7 @@ void D3D11CustomContext::DrawIndexed(UINT IndexCount, UINT StartIndexLocation, I
 
 	//++drawCallNumber;
 
-	m_pGLOM->Notify_Draw(IndexCount, StartIndexLocation, BaseVertexLocation);
+	m_pGLOM->Notify_Draw(IndexCount, StartIndexLocation, BaseVertexLocation, ECallsTypes::DrawIndexed);
 	m_devContext->DrawIndexed(IndexCount, StartIndexLocation, BaseVertexLocation);
 }
 
@@ -501,7 +503,7 @@ void D3D11CustomContext::Draw(UINT VertexCount, UINT StartVertexLocation)
 
 	//CaptureDraw();
 	//++drawCallNumber;
-	m_pGLOM->Notify_Draw(0, VertexCount, StartVertexLocation);
+	m_pGLOM->Notify_Draw(0, VertexCount, StartVertexLocation, ECallsTypes::Draw);
 	m_devContext->Draw(VertexCount, StartVertexLocation);
 }
 
@@ -519,7 +521,7 @@ void D3D11CustomContext::PSSetConstantBuffers(UINT StartSlot, UINT NumBuffers, I
 {
 	for (uint32_t i = 0; i < NumBuffers; ++i)
 	{
-		m_pGLOM->SetBuffer(ppConstantBuffers[i], EBufferTypes::PixelConstant);
+		m_pGLOM->SetBuffer(ppConstantBuffers[i], EBufferTypes::PixelConstant, StartSlot + i);
 	}
 	m_devContext->PSSetConstantBuffers(StartSlot, NumBuffers, ppConstantBuffers);
 }
@@ -538,6 +540,8 @@ void D3D11CustomContext::IASetInputLayout(ID3D11InputLayout* pInputLayout)
 	//	}
 	//}
 
+	m_pGLOM->SetInputLayout(pInputLayout);
+
 	m_devContext->IASetInputLayout(pInputLayout);
 }
 
@@ -545,7 +549,9 @@ void D3D11CustomContext::IASetVertexBuffers(UINT StartSlot, UINT NumBuffers, ID3
 {
 	for (uint32_t i = 0; i < NumBuffers; ++i)
 	{
-		m_pGLOM->SetBuffer(ppVertexBuffers[i], EBufferTypes::Vertex);
+		m_pGLOM->SetBuffer(ppVertexBuffers[i], EBufferTypes::Vertex, StartSlot + i);
+		//DEBUG_LOGLINE(m_pGLOM->Event, LOG("VertexBuffer Set with stride: " << pStrides[i] <<", Offset: " << pOffsets[i]));
+		m_pGLOM->SetVertexMeta(StartSlot + i, pStrides[i], pOffsets[i]);
 	}
 
 	m_devContext->IASetVertexBuffers(StartSlot, NumBuffers, ppVertexBuffers, pStrides, pOffsets);
@@ -553,7 +559,7 @@ void D3D11CustomContext::IASetVertexBuffers(UINT StartSlot, UINT NumBuffers, ID3
 
 void D3D11CustomContext::IASetIndexBuffer(ID3D11Buffer* pIndexBuffer, DXGI_FORMAT Format, UINT Offset)
 {
-	m_pGLOM->SetBuffer(pIndexBuffer, EBufferTypes::Index);
+	m_pGLOM->SetBuffer(pIndexBuffer, EBufferTypes::Index, 0);
 	m_devContext->IASetIndexBuffer(pIndexBuffer, Format, Offset);
 }
 
@@ -587,7 +593,7 @@ void D3D11CustomContext::DrawIndexedInstanced(UINT IndexCountPerInstance, UINT I
 	//}
 
 	//++drawCallNumber;
-	m_pGLOM->Notify_Draw(IndexCountPerInstance, StartIndexLocation, BaseVertexLocation);
+	m_pGLOM->Notify_Draw(IndexCountPerInstance, StartIndexLocation, BaseVertexLocation, ECallsTypes::DrawIndexedInstanced);
 	m_devContext->DrawIndexedInstanced(IndexCountPerInstance, InstanceCount, StartIndexLocation, BaseVertexLocation, StartInstanceLocation);
 }
 
@@ -601,7 +607,7 @@ void D3D11CustomContext::DrawInstanced(UINT VertexCountPerInstance, UINT Instanc
 
 	//CaptureDraw();
 	//++drawCallNumber;
-	m_pGLOM->Notify_Draw(0, VertexCountPerInstance, StartVertexLocation);
+	m_pGLOM->Notify_Draw(0, VertexCountPerInstance, StartVertexLocation, ECallsTypes::DrawInstanced);
 	m_devContext->DrawInstanced(VertexCountPerInstance, InstanceCount, StartVertexLocation, StartInstanceLocation);
 }
 
@@ -609,7 +615,7 @@ void D3D11CustomContext::GSSetConstantBuffers(UINT StartSlot, UINT NumBuffers, I
 {
 	for (uint32_t i = 0; i < NumBuffers; ++i)
 	{
-		m_pGLOM->SetBuffer(ppConstantBuffers[i], EBufferTypes::GeometryConstant);
+		m_pGLOM->SetBuffer(ppConstantBuffers[i], EBufferTypes::GeometryConstant, StartSlot + i);
 	}
 	m_devContext->GSSetConstantBuffers(StartSlot, NumBuffers, ppConstantBuffers);
 }
@@ -630,7 +636,7 @@ void D3D11CustomContext::VSSetShaderResources(UINT StartSlot, UINT NumViews, ID3
 {
 	for (uint32_t i = 0; i < NumViews; ++i)
 	{
-		m_pGLOM->SetResourceView(ppShaderResourceViews[i], ESRVTypes::VertexSRV);
+		m_pGLOM->SetResourceView(ppShaderResourceViews[i], ESRVTypes::VertexSRV, StartSlot + i);
 	}
 	m_devContext->VSSetShaderResources(StartSlot, NumViews, ppShaderResourceViews);
 }
@@ -697,19 +703,19 @@ void D3D11CustomContext::SOSetTargets(UINT NumBuffers, ID3D11Buffer* const* ppSO
 
 void D3D11CustomContext::DrawAuto()
 {
-	m_pGLOM->Notify_Draw(-1,-1,-1);
+	m_pGLOM->Notify_Draw(0, 0, 0, ECallsTypes::DrawAuto);
 	m_devContext->DrawAuto();
 }
 
 void D3D11CustomContext::DrawIndexedInstancedIndirect(ID3D11Buffer* pBufferForArgs, UINT AlignedByteOffsetForArgs)
 {
-	m_pGLOM->Notify_Draw(0,0,-1);
+	m_pGLOM->Notify_Draw(0, 0, 0, ECallsTypes::DrawIndexedInstancedIndirect);
 	m_devContext->DrawIndexedInstancedIndirect(pBufferForArgs, AlignedByteOffsetForArgs);
 }
 
 void D3D11CustomContext::DrawInstancedIndirect(ID3D11Buffer* pBufferForArgs, UINT AlignedByteOffsetForArgs)
 {
-	m_pGLOM->Notify_Draw(0,0,0);
+	m_pGLOM->Notify_Draw(0, 0, 0, ECallsTypes::DrawInstancedIndirect);
 	m_devContext->DrawInstancedIndirect(pBufferForArgs, AlignedByteOffsetForArgs);
 }
 
@@ -823,7 +829,7 @@ void D3D11CustomContext::HSSetConstantBuffers(UINT StartSlot, UINT NumBuffers, I
 {
 	for (uint32_t i = 0; i < NumBuffers; ++i)
 	{
-		m_pGLOM->SetBuffer(ppConstantBuffers[i], EBufferTypes::HullConstant);
+		m_pGLOM->SetBuffer(ppConstantBuffers[i], EBufferTypes::HullConstant, StartSlot + i);
 	}
 	m_devContext->HSSetConstantBuffers(StartSlot, NumBuffers, ppConstantBuffers);
 }
@@ -848,7 +854,7 @@ void D3D11CustomContext::DSSetConstantBuffers(UINT StartSlot, UINT NumBuffers, I
 {
 	for (uint32_t i = 0; i < NumBuffers; ++i)
 	{
-		m_pGLOM->SetBuffer(ppConstantBuffers[i], EBufferTypes::DomainConstant);
+		m_pGLOM->SetBuffer(ppConstantBuffers[i], EBufferTypes::DomainConstant, StartSlot + i);
 	}
 	m_devContext->DSSetConstantBuffers(StartSlot, NumBuffers, ppConstantBuffers);
 }
@@ -878,7 +884,7 @@ void D3D11CustomContext::CSSetConstantBuffers(UINT StartSlot, UINT NumBuffers, I
 {
 	for (uint32_t i = 0; i < NumBuffers; ++i)
 	{
-		m_pGLOM->SetBuffer(ppConstantBuffers[i], EBufferTypes::ComputeConstant);
+		m_pGLOM->SetBuffer(ppConstantBuffers[i], EBufferTypes::ComputeConstant, StartSlot + i);
 	}
 	m_devContext->CSSetConstantBuffers(StartSlot, NumBuffers, ppConstantBuffers);
 }

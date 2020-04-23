@@ -243,6 +243,7 @@
     <ClInclude Include="..\core\Call.h" />
     <ClInclude Include="..\core\Frame.h" />
     <ClInclude Include="..\core\Helpers\Helpers.h" />
+    <ClInclude Include="..\core\InputLayout.h" />
     <ClInclude Include="..\core\Interfaces\Serialisable.h" />
     <ClInclude Include="..\core\Shader.h" />
     <ClInclude Include="..\core\ShaderResources.h" />
@@ -260,6 +261,7 @@
     <ClCompile Include="..\core\Buffer.cpp" />
     <ClCompile Include="..\core\Call.cpp" />
     <ClCompile Include="..\core\Frame.cpp" />
+    <ClCompile Include="..\core\InputLayout.cpp" />
     <ClCompile Include="..\core\Interfaces\Serialisable.cpp" />
     <ClCompile Include="..\core\Shader.cpp" />
     <ClCompile Include="..\core\ShaderResources.cpp" />
@@ -273,6 +275,7 @@
     <ClCompile Include="utils.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="cpp.hint" />
     <None Include="d3d11Wrapper.def" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

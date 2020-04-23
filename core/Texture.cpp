@@ -55,7 +55,6 @@ void CTexture::Serialise(std::string strFilename)
 
 void CTexture::Load()
 {
-
 	// Infer Type
 	if (m_stTexInfo.uDepth == 0)
 	{
@@ -74,8 +73,6 @@ void CTexture::Load()
 		// 3D
         Load3D();
 	}
-
-
 }
 
 uint32_t CTexture::GetPixelSizeFromTypeBits(uint32_t dxgiFormat)

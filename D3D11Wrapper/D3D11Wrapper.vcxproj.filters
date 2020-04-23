@@ -78,6 +78,9 @@
     <ClInclude Include="..\core\Texture.h">
       <Filter>Header Files\Stateful</Filter>
     </ClInclude>
+    <ClInclude Include="..\core\InputLayout.h">
+      <Filter>Header Files\Stateful</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -122,10 +125,14 @@
     <ClCompile Include="..\core\Interfaces\Serialisable.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\core\InputLayout.cpp">
+      <Filter>Source Files\Stateful</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="d3d11Wrapper.def">
       <Filter>Source Files</Filter>
     </None>
+    <None Include="cpp.hint" />
   </ItemGroup>
 </Project>
