@@ -1,6 +1,9 @@
 
 # Created by https://www.gitignore.io/api/c++,visualstudio
 
+# Remove files that should not be included
+D3D11Wrapper/Engine*
+
 ### C++ ###
 # Prerequisites
 *.d

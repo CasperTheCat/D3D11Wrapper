@@ -6,15 +6,61 @@
 #include <d3d11_4.h>
 #include <d3d11on12.h>
 #include <fstream>
+#include "d3d11Device.h"
+#include "d3d11ObjectManager.h"
+
+#include "../core/Frame.h"
+
+////////////////////////////////////////////////////////////////////////////
+//// Vertex Structure and TexCoord
+////
+//struct FCAPVertex
+//{
+//	Vec3f position;
+//	Vec2f texcoord;
+//	FCAPVertex(Vec3f pos, Vec2f tex)
+//	{
+//		position = pos;
+//		texcoord = tex;
+//	}
+//	FCAPVertex(float _x, float _y, float _z, float _u, float _v)
+//	{
+//		position.x = _x;
+//		position.y = _y;
+//		position.z = _z;
+//		texcoord.x = _u;
+//		texcoord.y = _v;
+//	}
+//};
+
+//enum class ECaptureState : uint8_t
+//{
+//	Await,
+//	WaitingForPresent,
+//	Capture,
+//	Finished
+//};
 
 class D3D11CustomContext : public ID3D11DeviceContext
 {
+	friend class D3D11CustomDevice;
+
 protected:
 	ID3D11DeviceContext *m_devContext;
+	D3D11CustomDevice *m_pFalseDevice;
+	D3DObjectManager *m_pGLOM;
+
+	// Notifications
+	void Notify_Present();
+
+	// Common init
+	void CommonInitialise();
 
 public:
+	virtual ~D3D11CustomContext() = default;
 	D3D11CustomContext(ID3D11DeviceContext *dev, ID3D11DeviceContext ***ret);
-	D3D11CustomContext(ID3D11DeviceContext *dev);
+	D3D11CustomContext(ID3D11DeviceContext *dev, D3DObjectManager* Parent);
+	D3D11CustomContext(ID3D11DeviceContext *dev, D3D11CustomDevice *cdev, D3DObjectManager * Parent);
 
 
 	void STDMETHODCALLTYPE VSSetConstantBuffers(

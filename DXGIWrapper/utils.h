@@ -2,7 +2,7 @@
 
 #define LOG(x) "[INFO] " << x
 #define LOGERR(x) "[ERRO] " << x
-#define LOGWAR(x) "[WARN] " << x
+#define LOGWARN(x) "[WARN] " << x
 
 
 bool IsWow64();

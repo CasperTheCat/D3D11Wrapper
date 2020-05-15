@@ -6,17 +6,54 @@
 #include <d3d11_4.h>
 #include <d3d11on12.h>
 #include <fstream>
+#include <vector>
+#include "d3d11DeviceContext.h"
+#include "d3d11ObjectManager.h"
+
+
+class IVBuffer
+{
+public:
+	IVBuffer(void* buffer_pointer, UINT size, bool is_index, bool has_vertex)
+		: bufferPointer(buffer_pointer),
+		  uSize(size),
+		  bIsIndex(is_index),
+		  bHasVertex(has_vertex)
+	{
+	}
+
+	void *bufferPointer;
+	UINT uSize;
+	bool bIsIndex;
+	bool bHasVertex;
+
+};
 
 class D3D11CustomDevice : public ID3D11Device
 {
 protected:
 	ID3D11Device *m_d3dDevice;
+	D3DObjectManager *m_pGLOM;
+	class D3D11CustomContext * CustomContext;
 
+protected:
+	void PostInitialise();
 
 public:
 	virtual ~D3D11CustomDevice() = default;
 	D3D11CustomDevice(ID3D11Device *dev, ID3D11Device ***ret);
     D3D11CustomDevice(ID3D11Device *dev);
+
+	D3D11CustomDevice(ID3D11Device *dev, ID3D11Device ***ret, D3DObjectManager *pGlOM);
+    D3D11CustomDevice(ID3D11Device *dev, D3DObjectManager *pGlOM);
+	
+	virtual void Notify_Present();
+	virtual void Link(D3D11CustomContext *devCon);
+	virtual void LocateSwapchain();
+
+	virtual ID3D11Device *RealDevice();
+	virtual ID3D11DeviceContext* RealContext();
+	virtual class D3DObjectManager* GetGLOM();
 
 	HRESULT STDMETHODCALLTYPE CreateBuffer(
 		/* [annotation] */
