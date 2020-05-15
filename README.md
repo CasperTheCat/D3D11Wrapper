@@ -15,3 +15,7 @@ This project provides a way to detour functions of D3D11 and DXGI
 * * DXGICreateFactory1
 * * DXGICreateFactory2
 
+
+## Mesh Reconstruction
+
+A seperate project, Chimera, handles the reconstruction of geometry.
