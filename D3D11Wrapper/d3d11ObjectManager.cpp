@@ -26,13 +26,6 @@ D3DObjectManager::D3DObjectManager()
 {
 	//m_vFrames = std::make_shared<std::vector<CFrame>>();
 
-	LoadDLL();
-
-	m_fspRoot = std::filesystem::path(std::filesystem::current_path() / std::filesystem::path("Vermilion/"));
-
-	// Create if not
-	std::filesystem::create_directories(m_fspRoot);
-
 #ifndef NDEBUG
 	Event.open("D3D11.log");
 	DEBUG_LOGLINE(Event, LOG("Initialising"));
@@ -44,6 +37,13 @@ D3DObjectManager::D3DObjectManager()
 	LPSTR lls = GetCommandLineA();
 	DEBUG_LOGLINE(Event, "[ARGS] " << lls);
 #endif
+
+	LoadDLL();
+
+	m_fspRoot = std::filesystem::path(std::filesystem::current_path() / std::filesystem::path("Vermilion/"));
+
+	// Create if not
+	std::filesystem::create_directories(m_fspRoot);
 
 	m_vFrames.emplace_back();
 }
