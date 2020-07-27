@@ -90,7 +90,7 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>CORE_D3D9;WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <PrecompiledHeader />
@@ -108,7 +108,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>CORE_D3D9;WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <PrecompiledHeader />
@@ -126,7 +126,7 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>CORE_D3D9;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <PrecompiledHeader />
@@ -144,7 +144,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>CORE_D3D9;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <PrecompiledHeader />
@@ -162,6 +162,14 @@
     <None Include="d3d9Wrapper.def" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\core\Buffer.cpp" />
+    <ClCompile Include="..\core\Call.cpp" />
+    <ClCompile Include="..\core\Frame.cpp" />
+    <ClCompile Include="..\core\InputLayout.cpp" />
+    <ClCompile Include="..\core\Interfaces\Serialisable.cpp" />
+    <ClCompile Include="..\core\Shader.cpp" />
+    <ClCompile Include="..\core\ShaderResources.cpp" />
+    <ClCompile Include="..\core\Texture.cpp" />
     <ClCompile Include="d3d9ObjectManager.cpp" />
     <ClCompile Include="d3d9Device.cpp" />
     <ClCompile Include="d3d9Functions.cpp" />
@@ -170,6 +178,15 @@
     <ClCompile Include="utils.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\core\Buffer.h" />
+    <ClInclude Include="..\core\Call.h" />
+    <ClInclude Include="..\core\Frame.h" />
+    <ClInclude Include="..\core\Helpers\Helpers.h" />
+    <ClInclude Include="..\core\InputLayout.h" />
+    <ClInclude Include="..\core\Interfaces\Serialisable.h" />
+    <ClInclude Include="..\core\Shader.h" />
+    <ClInclude Include="..\core\ShaderResources.h" />
+    <ClInclude Include="..\core\Texture.h" />
     <ClInclude Include="d3d9ObjectManager.h" />
     <ClInclude Include="d3d9Device.h" />
     <ClInclude Include="interface.h" />

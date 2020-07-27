@@ -26,12 +26,16 @@ D3DObjectManager::D3DObjectManager()
 {
 	//m_vFrames = std::make_shared<std::vector<CFrame>>();
 
+	AllocConsole();
+	freopen_s((FILE**)stdout, "CONOUT$", "w", stdout);
+
+	Timing.open("Timing.bin", std::ios::binary);
+
 #ifndef NDEBUG
 	Event.open("D3D11.log");
 	DEBUG_LOGLINE(Event, LOG("Initialising"));
 
-	AllocConsole();
-	freopen_s((FILE**)stdout, "CONOUT$", "w", stdout);
+
 	std::cout << "DLL initialised" << std::endl;
 
 	LPSTR lls = GetCommandLineA();
@@ -50,7 +54,10 @@ D3DObjectManager::D3DObjectManager()
 
 D3DObjectManager::~D3DObjectManager()
 {
+#ifndef NDEBUG
 	Event.close();
+#endif
+	Timing.close();
 }
 
 void D3DObjectManager::WriteFrame()
@@ -130,7 +137,18 @@ HMODULE D3DObjectManager::getDLL()
 
 void D3DObjectManager::Notify_Present()
 {
-	DEBUG_LOGLINE(Event, LOG("HitPresent"));
+	//DEBUG_ONLY_PRINT(LOG("HitPresent"));
+	auto tpNow = std::chrono::high_resolution_clock::now();
+
+	long long uTimeTaken = std::chrono::duration_cast<std::chrono::microseconds>(tpNow - m_tpLastFrameTime).count();
+
+	//DEBUG_ONLY_PRINT();
+	//std::cout << LOG("Frame took " << uTimeTaken << " microseconds") << std::endl;
+	m_tpLastFrameTime = tpNow;
+
+	// Ready To Serialise!!!
+	// Always to disk is a bad idea?
+	Timing.write(reinterpret_cast<char*>(&uTimeTaken), sizeof(long long));
 
 	switch (m_eCaptureState)
 	{

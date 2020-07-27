@@ -1,7 +1,9 @@
 #include "Texture.h"
-#include "../D3D11Wrapper/d3d11Device.h"
+
 #include <iostream>
 
+#if defined(CORE_D3D11)
+#include "../D3D11Wrapper/d3d11Device.h"
 CTexture::CTexture(void* pEngine, const D3D11_SUBRESOURCE_DATA* pData, FTextureInfo* texInfo, D3D11CustomDevice* pOwningDevice, bool bIsImmediate) :
 	m_pEnginePointer(pEngine),
 	m_bTransientCapture(!bIsImmediate),
@@ -53,27 +55,7 @@ void CTexture::Serialise(std::string strFilename)
     bHasBeenSerialised = true;
 }
 
-void CTexture::Load()
-{
-	// Infer Type
-	if (m_stTexInfo.uDepth == 0)
-	{
-		if (m_stTexInfo.uHeight == 0)
-		{
-			Load1D();
-		}
-		else
-		{
-			// 2D
-            Load2D();
-		}
-	}
-	else
-	{
-		// 3D
-        Load3D();
-	}
-}
+
 
 uint32_t CTexture::GetPixelSizeFromTypeBits(uint32_t dxgiFormat)
 {
@@ -432,4 +414,72 @@ void CTexture::Load3D()
 
     m_pOwner->RealContext()->Unmap(pResBuffer, 0);
     pResBuffer->Release();
+}
+
+
+#elif defined(CORE_D3D9)
+#include "../D3D9Wrapper/d3d9Device.h"
+CTexture::CTexture(void* pEngine, const void* pData, FTextureInfo* texInfo, D3D9CustomDevice* pOwningDevice, bool bIsImmediate) :
+    m_pEnginePointer(pEngine),
+    m_bTransientCapture(!bIsImmediate),
+    m_pOwner(pOwningDevice)
+{
+    m_stTexInfo.uCount = texInfo->uCount;
+    m_stTexInfo.uDepth = texInfo->uDepth;
+    m_stTexInfo.uFormat = texInfo->uFormat;
+    m_stTexInfo.uHeight = texInfo->uHeight;
+    m_stTexInfo.uWidth = texInfo->uWidth;
+}
+
+CTexture::~CTexture()
+{
+}
+
+void CTexture::Serialise(std::string strFilename)
+{
+
+}
+
+uint32_t CTexture::GetPixelSizeFromTypeBits(uint32_t dxgiFormat)
+{
+    return 0;
+}
+
+void CTexture::Load1D()
+{
+
+}
+
+void CTexture::Load2D()
+{
+
+}
+
+void CTexture::Load3D()
+{
+
+}
+#endif
+
+
+void CTexture::Load()
+{
+    // Infer Type
+    if (m_stTexInfo.uDepth == 0)
+    {
+        if (m_stTexInfo.uHeight == 0)
+        {
+            Load1D();
+        }
+        else
+        {
+            // 2D
+            Load2D();
+        }
+    }
+    else
+    {
+        // 3D
+        Load3D();
+    }
 }

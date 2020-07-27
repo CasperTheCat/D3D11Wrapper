@@ -59,7 +59,7 @@ class CCall
 		uint32_t m_uStartIndexLocation;
 		int32_t  m_iBaseVertexLocation;
 		uint32_t m_uDrawCallType;
-
+		uint32_t m_uPrimitiveType;
 
 		void Helper_AddBufferAtVectorLocation(std::vector<int32_t>& vec, int32_t iBufferIndex, uint32_t uSlotIndex);
 
@@ -74,7 +74,7 @@ class CCall
 
 		void FinaliseResource(class D3DObjectManager* pGLOM, FShaderResources* pSrv);
 		void Finalise(class D3DObjectManager* pGLOM);
-		void SetInfo(UINT IndexCount, UINT StartIndexLocation, INT BaseVertexLocation, uint32_t uDrawCallType);
+		void SetInfo(UINT IndexCount, UINT StartIndexLocation, INT BaseVertexLocation, uint32_t uDrawCallType, uint32_t uPrimitiveType = -1);
 
 
 		///// ///// ////////// ///// /////

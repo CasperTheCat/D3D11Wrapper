@@ -1,8 +1,15 @@
 #include "Call.h"
-#include "../D3D11Wrapper/Globals.h"
 #include <iostream>
 
+#if defined(CORE_D3D11)
+#include "../D3D11Wrapper/Globals.h"
 #include "../D3D11Wrapper/d3d11ObjectManager.h"
+#elif defined(CORE_D3D9)
+#include "../D3D9Wrapper/Globals.h"
+#include "../D3D9Wrapper/d3d9ObjectManager.h"
+#else
+#error Something Went Wrong
+#endif
 
 void CCall::Helper_AddBufferAtVectorLocation(std::vector<int32_t>& vec, int32_t iBufferIndex, uint32_t uSlotIndex)
 {
@@ -32,7 +39,8 @@ CCall::CCall(uint32_t frameNumber) :
 	m_iBaseVertexLocation(0),
 	m_iInputLayout(1),
 	m_uDrawCallType(-1),
-	m_uFrameNumber(frameNumber)
+	m_uFrameNumber(frameNumber),
+	m_uPrimitiveType(-1)
 {
 
 	// VertexBuffers
@@ -55,7 +63,8 @@ CCall::CCall(const CCall& copy) :
 	InitFromCopy(m_iBaseVertexLocation),
 	InitFromCopy(m_iInputLayout),
 	InitFromCopy(m_uDrawCallType),
-	m_uFrameNumber(copy.m_uFrameNumber + 1)
+	m_uFrameNumber(copy.m_uFrameNumber + 1),
+	InitFromCopy(m_uPrimitiveType)
 {
 	// Structs
 	// IA
@@ -121,6 +130,11 @@ void CCall::Serialise(std::filesystem::path writePath, D3DObjectManager* pGLOM)
 		sizeof(uint32_t)
 	);
 
+	serial.write(
+		reinterpret_cast<char*>(&m_uPrimitiveType),
+		sizeof(uint32_t)
+	);
+
 	for(uint32_t i = 0; i < m_vstVertexInvocationData.size(); ++i)
 	{
 		serial.write(
@@ -159,11 +173,11 @@ void CCall::Serialise(std::filesystem::path writePath, D3DObjectManager* pGLOM)
 		}
 	}
 
-	//if (m_iInputLayout >= 0)
-	//{
-	//	DEBUG_LINE(pGLOM->Event, LOGWRT("Writing Input Layout"));
-	//	pGLOM->GetInputLayout(m_iInputLayout)->Serialise((writePath / "input.layout").string());
-	//}
+	if (m_iInputLayout >= 0)
+	{
+		DEBUG_LINE(pGLOM->Event, LOGWRT("Writing Input Layout"));
+		pGLOM->GetInputLayout(m_iInputLayout)->Serialise((writePath / "input.layout").string());
+	}
 
 	///// ///// ////////// ///// /////
 	// Shaders
@@ -522,6 +536,12 @@ void CCall::Finalise(class D3DObjectManager* pGLOM)
 		}
 	}
 
+	if (m_iInputLayout >= 0)
+	{
+		DEBUG_LINE(pGLOM->Event, LOGWRT("Finalising Index Layout"));
+		pGLOM->GetInputLayout(m_iInputLayout)->Load();
+	}
+
 	///// ///// ////////// ///// /////
 	// Shaders
 	//
@@ -578,12 +598,13 @@ void CCall::Finalise(class D3DObjectManager* pGLOM)
 	//FinaliseResource(pGLOM, &m_stComputeResources);
 }
 
-void CCall::SetInfo(UINT IndexCount, UINT StartIndexLocation, INT BaseVertexLocation, uint32_t uDrawCallType)
+void CCall::SetInfo(UINT IndexCount, UINT StartIndexLocation, INT BaseVertexLocation, uint32_t uDrawCallType, uint32_t uPrimitiveType)
 {
 	m_uIndexCount = IndexCount;
 	m_uStartIndexLocation = StartIndexLocation;
 	m_iBaseVertexLocation = BaseVertexLocation;
 	m_uDrawCallType = uDrawCallType;
+	m_uPrimitiveType = uPrimitiveType;
 }
 
 void CCall::SetTopology(uint32_t eTopology)

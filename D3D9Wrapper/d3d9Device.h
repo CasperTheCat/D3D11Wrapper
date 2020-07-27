@@ -10,11 +10,21 @@ class D3D9CustomDevice : public IDirect3DDevice9
 {
 protected:
 	IDirect3DDevice9* m_pRealDevice;
-	D3DObjectManager* m_pGLOM;
+	class D3DObjectManager* m_pGLOM;
 
 public:
 	D3D9CustomDevice(IDirect3DDevice9* pReal, D3DObjectManager* pGlOM);
 	virtual ~D3D9CustomDevice() = default;
+
+	IDirect3DDevice9* RealDevice()
+	{
+		return m_pRealDevice;
+	}
+
+	D3DObjectManager* GetGLOM()
+	{
+		return m_pGLOM;
+	}
 
 	// Inherited via IDirect3DDevice9
 	virtual HRESULT __stdcall QueryInterface(REFIID riid, void** ppvObj) override;

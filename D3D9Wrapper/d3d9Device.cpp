@@ -131,7 +131,22 @@ void __stdcall D3D9CustomDevice::GetGammaRamp(UINT iSwapChain, D3DGAMMARAMP* pRa
 
 HRESULT __stdcall D3D9CustomDevice::CreateTexture(UINT Width, UINT Height, UINT Levels, DWORD Usage, D3DFORMAT Format, D3DPOOL Pool, IDirect3DTexture9** ppTexture, HANDLE* pSharedHandle)
 {
-	return m_pRealDevice->CreateTexture(Width, Height, Levels, Usage, Format, Pool, ppTexture, pSharedHandle);
+	auto ret = m_pRealDevice->CreateTexture(Width, Height, Levels, Usage, Format, Pool, ppTexture, pSharedHandle);
+
+	if (ret == S_OK)
+	{
+		FTextureInfo fTexInfo{};
+
+		bool CanCaptureImmediate = false;
+
+		fTexInfo.uWidth = Width;
+		fTexInfo.uHeight = Height;
+		fTexInfo.uFormat = Format;
+
+		//m_pGLOM->AddTexture(*ppTexture, nullptr, fTexInfo, this, CanCaptureImmediate);
+	}
+
+	return ret;
 }
 
 HRESULT __stdcall D3D9CustomDevice::CreateVolumeTexture(UINT Width, UINT Height, UINT Depth, UINT Levels, DWORD Usage, D3DFORMAT Format, D3DPOOL Pool, IDirect3DVolumeTexture9** ppVolumeTexture, HANDLE* pSharedHandle)
@@ -146,12 +161,26 @@ HRESULT __stdcall D3D9CustomDevice::CreateCubeTexture(UINT EdgeLength, UINT Leve
 
 HRESULT __stdcall D3D9CustomDevice::CreateVertexBuffer(UINT Length, DWORD Usage, DWORD FVF, D3DPOOL Pool, IDirect3DVertexBuffer9** ppVertexBuffer, HANDLE* pSharedHandle)
 {
-	return m_pRealDevice->CreateVertexBuffer(Length, Usage, FVF, Pool, ppVertexBuffer, pSharedHandle);
+	auto ret = m_pRealDevice->CreateVertexBuffer(Length, Usage, FVF, Pool, ppVertexBuffer, pSharedHandle);
+
+	if (ret == S_OK)
+	{
+		m_pGLOM->AddBuffer(*ppVertexBuffer, EBufferTypes::Vertex, 0, 0, this);
+	}
+
+	return ret;
 }
 
 HRESULT __stdcall D3D9CustomDevice::CreateIndexBuffer(UINT Length, DWORD Usage, D3DFORMAT Format, D3DPOOL Pool, IDirect3DIndexBuffer9** ppIndexBuffer, HANDLE* pSharedHandle)
 {
-	return m_pRealDevice->CreateIndexBuffer(Length, Usage, Format, Pool, ppIndexBuffer, pSharedHandle);
+	auto ret = m_pRealDevice->CreateIndexBuffer(Length, Usage, Format, Pool, ppIndexBuffer, pSharedHandle);
+
+	if (ret == S_OK)
+	{
+		m_pGLOM->AddBuffer(*ppIndexBuffer, EBufferTypes::Index, 0, 0, this);
+	}
+
+	return ret;
 }
 
 HRESULT __stdcall D3D9CustomDevice::CreateRenderTarget(UINT Width, UINT Height, D3DFORMAT Format, D3DMULTISAMPLE_TYPE MultiSample, DWORD MultisampleQuality, BOOL Lockable, IDirect3DSurface9** ppSurface, HANDLE* pSharedHandle)
@@ -421,11 +450,13 @@ float __stdcall D3D9CustomDevice::GetNPatchMode(void)
 
 HRESULT __stdcall D3D9CustomDevice::DrawPrimitive(D3DPRIMITIVETYPE PrimitiveType, UINT StartVertex, UINT PrimitiveCount)
 {
+	m_pGLOM->Notify_Draw(PrimitiveType, 0, StartVertex, 0, 0, PrimitiveCount, ECallsTypes::DrawPrimitive);
 	return m_pRealDevice->DrawPrimitive(PrimitiveType, StartVertex, PrimitiveCount);
 }
 
 HRESULT __stdcall D3D9CustomDevice::DrawIndexedPrimitive(D3DPRIMITIVETYPE PrimitiveType, INT BaseVertexIndex, UINT MinVertexIndex, UINT NumVertices, UINT startIndex, UINT primCount)
 {
+	m_pGLOM->Notify_Draw(PrimitiveType, BaseVertexIndex, MinVertexIndex, NumVertices, startIndex, primCount, ECallsTypes::DrawIndexedPrimitive);
 	return m_pRealDevice->DrawIndexedPrimitive(PrimitiveType, BaseVertexIndex, MinVertexIndex, NumVertices, startIndex, primCount);
 }
 
@@ -446,12 +477,26 @@ HRESULT __stdcall D3D9CustomDevice::ProcessVertices(UINT SrcStartIndex, UINT Des
 
 HRESULT __stdcall D3D9CustomDevice::CreateVertexDeclaration(const D3DVERTEXELEMENT9* pVertexElements, IDirect3DVertexDeclaration9** ppDecl)
 {
-	return m_pRealDevice->CreateVertexDeclaration(pVertexElements, ppDecl);
+	auto ret = m_pRealDevice->CreateVertexDeclaration(pVertexElements, ppDecl);
+
+	if (ret == S_OK)
+	{
+		m_pGLOM->AddInputLayout(*ppDecl);
+	}
+
+	return ret;
 }
 
 HRESULT __stdcall D3D9CustomDevice::SetVertexDeclaration(IDirect3DVertexDeclaration9* pDecl)
 {
-	return m_pRealDevice->SetVertexDeclaration(pDecl);
+	auto ret = m_pRealDevice->SetVertexDeclaration(pDecl);
+
+	if (ret == S_OK)
+	{
+		m_pGLOM->SetInputLayout(pDecl);
+	}
+
+	return ret;
 }
 
 HRESULT __stdcall D3D9CustomDevice::GetVertexDeclaration(IDirect3DVertexDeclaration9** ppDecl)
@@ -471,49 +516,77 @@ HRESULT __stdcall D3D9CustomDevice::GetFVF(DWORD* pFVF)
 
 HRESULT __stdcall D3D9CustomDevice::CreateVertexShader(const DWORD* pFunction, IDirect3DVertexShader9** ppShader)
 {
-	return m_pRealDevice->CreateVertexShader(pFunction, ppShader);
+	auto ret = m_pRealDevice->CreateVertexShader(pFunction, ppShader);
+
+	if (ret == S_OK)
+	{
+		// Unlike DX11, we need to get the bytecode ourselves
+		std::vector<char> vBytecode;
+		uint32_t RequestedSize = 0;
+
+		auto returnValue = (*ppShader)->GetFunction(NULL, &RequestedSize);
+		if (returnValue != S_OK)
+		{
+			DEBUG_LINE(m_pGLOM->Event, LOGERR("Bad Return for GetFunction"));
+			return ret;
+		}
+
+		vBytecode.resize(RequestedSize);
+
+		returnValue = (*ppShader)->GetFunction(vBytecode.data(), &RequestedSize);
+		if (returnValue != S_OK)
+		{
+			DEBUG_LINE(m_pGLOM->Event, LOGERR("Bad Return for GetFunction with data"));
+			return ret;
+		}
+
+		m_pGLOM->AddShader(*ppShader, vBytecode.data(), vBytecode.size());
+	}
+
+	return ret;
 }
 
 HRESULT __stdcall D3D9CustomDevice::SetVertexShader(IDirect3DVertexShader9* pShader)
 {
-	if (m_refCount < 10 && pShader)
-	{
-		std::ofstream html(std::to_string(m_refCount++) + ".html", std::ios::out | std::ios::binary);
+	//if (m_refCount < 10 && pShader)
+	//{
+	//	std::ofstream html(std::to_string(m_refCount++) + ".html", std::ios::out | std::ios::binary);
 
-		//DEBUG_LINE(m_pGLOM->Event, LOGERR("TEST"));
+	//	//DEBUG_LINE(m_pGLOM->Event, LOGERR("TEST"));
 
-		std::vector<char> vBytecode;
-		uint32_t RequestedSize = 0;
+	//	std::vector<char> vBytecode;
+	//	uint32_t RequestedSize = 0;
 
-		auto returnValue = pShader->GetFunction(NULL, &RequestedSize);
-		if (returnValue != S_OK)
-		{
-			DEBUG_LINE(m_pGLOM->Event, LOGERR("Bad Return for GetFunction"));
-		}
+	//	auto returnValue = pShader->GetFunction(NULL, &RequestedSize);
+	//	if (returnValue != S_OK)
+	//	{
+	//		DEBUG_LINE(m_pGLOM->Event, LOGERR("Bad Return for GetFunction"));
+	//	}
 
-		DEBUG_LINE(m_pGLOM->Event, LOG("Good Return for GetFunction"));
-		vBytecode.resize(RequestedSize);
+	//	DEBUG_LINE(m_pGLOM->Event, LOG("Good Return for GetFunction"));
+	//	vBytecode.resize(RequestedSize);
 
-		returnValue = pShader->GetFunction(vBytecode.data(), &RequestedSize);
-		if (returnValue != S_OK)
-		{
-			DEBUG_LINE(m_pGLOM->Event, LOGERR("Bad Return for GetFunction with data"));
-		}
-		DEBUG_LINE(m_pGLOM->Event, LOG("Good Return for GetFunction with Data"));
+	//	returnValue = pShader->GetFunction(vBytecode.data(), &RequestedSize);
+	//	if (returnValue != S_OK)
+	//	{
+	//		DEBUG_LINE(m_pGLOM->Event, LOGERR("Bad Return for GetFunction with data"));
+	//	}
+	//	DEBUG_LINE(m_pGLOM->Event, LOG("Good Return for GetFunction with Data"));
 
-		ID3DBlob* disShader;
-		D3DDisassemble(vBytecode.data(), vBytecode.size(),
-			D3D_DISASM_ENABLE_COLOR_CODE |
-			D3D_DISASM_ENABLE_INSTRUCTION_OFFSET |
-			D3D_DISASM_ENABLE_DEFAULT_VALUE_PRINTS,
-			nullptr,
-			&disShader
-		);
+	//	ID3DBlob* disShader;
+	//	D3DDisassemble(vBytecode.data(), vBytecode.size(),
+	//		D3D_DISASM_ENABLE_COLOR_CODE |
+	//		D3D_DISASM_ENABLE_INSTRUCTION_OFFSET |
+	//		D3D_DISASM_ENABLE_DEFAULT_VALUE_PRINTS,
+	//		nullptr,
+	//		&disShader
+	//	);
 
-		html.write(reinterpret_cast<char*>(disShader->GetBufferPointer()), disShader->GetBufferSize());
-		html.close();
-	}
+	//	html.write(reinterpret_cast<char*>(disShader->GetBufferPointer()), disShader->GetBufferSize());
+	//	html.close();
+	//}
 
+	m_pGLOM->SetShader(pShader, EShaderTypes::Vertex);
 	return m_pRealDevice->SetVertexShader(pShader);
 }
 
@@ -554,6 +627,8 @@ HRESULT __stdcall D3D9CustomDevice::GetVertexShaderConstantB(UINT StartRegister,
 
 HRESULT __stdcall D3D9CustomDevice::SetStreamSource(UINT StreamNumber, IDirect3DVertexBuffer9* pStreamData, UINT OffsetInBytes, UINT Stride)
 {
+	//DEBUG_LOGLINE(m_pGLOM->Event, LOG("CallSSS: " << StreamNumber << " with " << OffsetInBytes << " " << Stride));
+	m_pGLOM->SetBuffer(pStreamData, EBufferTypes::Vertex, StreamNumber);
 	return m_pRealDevice->SetStreamSource(StreamNumber, pStreamData, OffsetInBytes, Stride);
 }
 
@@ -574,6 +649,7 @@ HRESULT __stdcall D3D9CustomDevice::GetStreamSourceFreq(UINT StreamNumber, UINT*
 
 HRESULT __stdcall D3D9CustomDevice::SetIndices(IDirect3DIndexBuffer9* pIndexData)
 {
+	m_pGLOM->SetBuffer(pIndexData, EBufferTypes::Index, 0);
 	return m_pRealDevice->SetIndices(pIndexData);
 }
 
@@ -584,12 +660,38 @@ HRESULT __stdcall D3D9CustomDevice::GetIndices(IDirect3DIndexBuffer9** ppIndexDa
 
 HRESULT __stdcall D3D9CustomDevice::CreatePixelShader(const DWORD* pFunction, IDirect3DPixelShader9** ppShader)
 {
-	return m_pRealDevice->CreatePixelShader(pFunction, ppShader);
+	auto ret = m_pRealDevice->CreatePixelShader(pFunction, ppShader);
+	if (ret == S_OK)
+	{
+		// Unlike DX11, we need to get the bytecode ourselves
+		std::vector<char> vBytecode;
+		uint32_t RequestedSize = 0;
+
+		auto returnValue = (*ppShader)->GetFunction(NULL, &RequestedSize);
+		if (returnValue != S_OK)
+		{
+			DEBUG_LINE(m_pGLOM->Event, LOGERR("Bad Return for GetFunction"));
+			return ret;
+		}
+
+		vBytecode.resize(RequestedSize);
+
+		returnValue = (*ppShader)->GetFunction(vBytecode.data(), &RequestedSize);
+		if (returnValue != S_OK)
+		{
+			DEBUG_LINE(m_pGLOM->Event, LOGERR("Bad Return for GetFunction with data"));
+			return ret;
+		}
+
+		m_pGLOM->AddShader(*ppShader, vBytecode.data(), vBytecode.size());
+	}
+
+	return ret;
 }
 
 HRESULT __stdcall D3D9CustomDevice::SetPixelShader(IDirect3DPixelShader9* pShader)
 {
-	
+	m_pGLOM->SetShader(pShader, EShaderTypes::Pixel);
 	return m_pRealDevice->SetPixelShader(pShader);
 }
 
