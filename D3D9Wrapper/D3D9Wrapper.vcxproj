@@ -90,7 +90,7 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>CORE_D3D9;WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>NOMINMAX;WIN32_LEAN_AND_MEAN;CORE_D3D9;WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <PrecompiledHeader />
@@ -108,7 +108,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>CORE_D3D9;WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>NOMINMAX;WIN32_LEAN_AND_MEAN;CORE_D3D9;WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <PrecompiledHeader />
@@ -126,7 +126,7 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>CORE_D3D9;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>NOMINMAX;WIN32_LEAN_AND_MEAN;CORE_D3D9;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <PrecompiledHeader />
@@ -144,7 +144,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>CORE_D3D9;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>NOMINMAX;WIN32_LEAN_AND_MEAN;CORE_D3D9;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <PrecompiledHeader />
@@ -167,6 +167,8 @@
     <ClCompile Include="..\core\Frame.cpp" />
     <ClCompile Include="..\core\InputLayout.cpp" />
     <ClCompile Include="..\core\Interfaces\Serialisable.cpp" />
+    <ClCompile Include="..\core\Network.cpp" />
+    <ClCompile Include="..\core\Ringbuffer.cpp" />
     <ClCompile Include="..\core\Shader.cpp" />
     <ClCompile Include="..\core\ShaderResources.cpp" />
     <ClCompile Include="..\core\Texture.cpp" />
@@ -184,6 +186,8 @@
     <ClInclude Include="..\core\Helpers\Helpers.h" />
     <ClInclude Include="..\core\InputLayout.h" />
     <ClInclude Include="..\core\Interfaces\Serialisable.h" />
+    <ClInclude Include="..\core\Network.h" />
+    <ClInclude Include="..\core\Ringbuffer.h" />
     <ClInclude Include="..\core\Shader.h" />
     <ClInclude Include="..\core\ShaderResources.h" />
     <ClInclude Include="..\core\Texture.h" />

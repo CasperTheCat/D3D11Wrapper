@@ -25,6 +25,8 @@
 
 #include <atomic>
 #include <filesystem>
+
+#include "../core/Network.h"
 // Include from our mgmt classes
 // Not needed yet
 
@@ -80,6 +82,8 @@ private:
 
 	std::filesystem::path m_fspRoot;
 	std::ofstream Timing;
+	std::unique_ptr<CNetwork> m_pTimingNetwork;
+	bool m_bUsingNetwork;
 
 protected:
 	HMODULE hD3D;

@@ -22,12 +22,26 @@ D3DObjectManager::D3DObjectManager()
 	bIsDllValid(false),
 	m_eCaptureState(ECaptureState::Await),
 	m_eWriteState(EWritebackState::Complete),
-	m_uFramenumber(0)
+	m_uFramenumber(0),
+	m_tpLastFrameTime(std::chrono::high_resolution_clock::now())
 {
 	AllocConsole();
 	freopen_s((FILE**)stdout, "CONOUT$", "w", stdout);
 
-	Timing.open("Timing.bin", std::ios::binary);
+	//Timing.open("Timing.bin", std::ios::binary);
+
+	try
+	{
+		m_pTimingNetwork = std::make_unique<CNetwork>(L"127.0.0.1", 6666);
+		std::cout << "Got Network" << std::endl;
+		m_bUsingNetwork = true;
+	}
+	catch (const std::exception&)
+	{
+		std::cout << "Caught Exception" << std::endl;
+		m_bUsingNetwork = false;
+	}
+	
 
 #ifndef NDEBUG
 	Event.open("D3D9.log");
@@ -56,7 +70,7 @@ D3DObjectManager::~D3DObjectManager()
 #ifndef NDEBUG
 	Event.close();
 #endif
-	Timing.close();
+	//Timing.close();
 }
 
 void D3DObjectManager::WriteFrame()
@@ -142,13 +156,17 @@ void D3DObjectManager::Notify_Present()
 	long long uTimeTaken = std::chrono::duration_cast<std::chrono::microseconds>(tpNow - m_tpLastFrameTime).count();
 
 	//DEBUG_ONLY_PRINT();
-	std::cout << LOG("Frame took " << uTimeTaken << " microseconds") << std::endl;
+	DEBUG_LINE(Event, LOG("Frame took " << uTimeTaken << " microseconds"));
 	m_tpLastFrameTime = tpNow;
 
 	// Ready To Serialise!!!
 	// Always to disk is a bad idea?
-	Timing.write(reinterpret_cast<char*>(&uTimeTaken), sizeof(long long));
-
+	//Timing.write(reinterpret_cast<char*>(&uTimeTaken), sizeof(long long));
+	if (m_bUsingNetwork)
+	{
+		DEBUG_LINE(Event, LOG("Sending: " << uTimeTaken << " microseconds"));
+		m_pTimingNetwork->SendU64(uTimeTaken);
+	}
 
 
 	switch (m_eCaptureState)

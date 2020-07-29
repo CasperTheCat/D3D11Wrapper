@@ -29,7 +29,19 @@ D3DObjectManager::D3DObjectManager()
 	AllocConsole();
 	freopen_s((FILE**)stdout, "CONOUT$", "w", stdout);
 
-	Timing.open("Timing.bin", std::ios::binary);
+	//Timing.open("Timing.bin", std::ios::binary);
+
+	try
+	{
+		m_pTimingNetwork = std::make_unique<CNetwork>(L"127.0.0.1", 6666);
+		std::cout << "Got Network" << std::endl;
+		m_bUsingNetwork = true;
+	}
+	catch (const std::exception&)
+	{
+		std::cout << "Caught Exception" << std::endl;
+		m_bUsingNetwork = false;
+}
 
 #ifndef NDEBUG
 	Event.open("D3D11.log");
@@ -148,7 +160,12 @@ void D3DObjectManager::Notify_Present()
 
 	// Ready To Serialise!!!
 	// Always to disk is a bad idea?
-	Timing.write(reinterpret_cast<char*>(&uTimeTaken), sizeof(long long));
+	//Timing.write(reinterpret_cast<char*>(&uTimeTaken), sizeof(long long));
+	if (m_bUsingNetwork)
+	{
+		m_pTimingNetwork->SendU64(uTimeTaken);
+	}
+	
 
 	switch (m_eCaptureState)
 	{

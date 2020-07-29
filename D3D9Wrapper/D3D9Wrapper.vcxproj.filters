@@ -28,6 +28,9 @@
     <Filter Include="Source Files\Interfaces">
       <UniqueIdentifier>{d733f91d-30a8-483d-be96-2122dc15f1b8}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Shared">
+      <UniqueIdentifier>{05d1f7f9-df2d-4dcb-9194-50e6e2aae89e}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <None Include="d3d9Wrapper.def">
@@ -77,6 +80,12 @@
     <ClCompile Include="..\core\ShaderResources.cpp">
       <Filter>Source Files\Stateful</Filter>
     </ClCompile>
+    <ClCompile Include="..\core\Network.cpp">
+      <Filter>Shared</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\Ringbuffer.cpp">
+      <Filter>Shared</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="stdafx.h">
@@ -120,6 +129,12 @@
     </ClInclude>
     <ClInclude Include="..\core\InputLayout.h">
       <Filter>Header Files\Stateful</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\Network.h">
+      <Filter>Shared</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\Ringbuffer.h">
+      <Filter>Shared</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

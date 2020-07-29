@@ -1,4 +1,5 @@
 #pragma once
+#define WIN32_LEAN_AND_MEAN
 #include <d3d11.h>
 #include <d3d11_1.h>
 #include <d3d11_2.h>
@@ -11,6 +12,7 @@
 #include <cstdint>
 #include <mutex>
 #include <chrono>
+#include "../core/Network.h"
 
 // Data
 #include "../core/Frame.h"
@@ -82,6 +84,9 @@ private:
 
 	std::filesystem::path m_fspRoot;
 	std::ofstream Timing;
+	std::unique_ptr<CNetwork> m_pTimingNetwork;
+	bool m_bUsingNetwork;
+
 
 protected:
 	HMODULE hD3D;

@@ -25,6 +25,9 @@
     <Filter Include="Source Files\Stateful">
       <UniqueIdentifier>{5af593bb-e7c5-4e95-be18-f5879a0ccb76}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Shared">
+      <UniqueIdentifier>{b067d743-ed46-40e3-90c1-c90557ae3372}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <Text Include="ReadMe.txt" />
@@ -81,6 +84,12 @@
     <ClInclude Include="..\core\InputLayout.h">
       <Filter>Header Files\Stateful</Filter>
     </ClInclude>
+    <ClInclude Include="..\core\Network.h">
+      <Filter>Shared</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\Ringbuffer.h">
+      <Filter>Shared</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -127,6 +136,12 @@
     </ClCompile>
     <ClCompile Include="..\core\InputLayout.cpp">
       <Filter>Source Files\Stateful</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\Network.cpp">
+      <Filter>Shared</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\Ringbuffer.cpp">
+      <Filter>Shared</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

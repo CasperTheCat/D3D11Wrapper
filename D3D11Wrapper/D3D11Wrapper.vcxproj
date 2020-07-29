@@ -126,7 +126,7 @@
       </PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
-      <PreprocessorDefinitions>CORE_D3D11;WIN32;_DEBUG;_WINDOWS;_USRDLL;D3D11WRAPPER_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>NOMINMAX;WIN32_LEAN_AND_MEAN;CORE_D3D11;WIN32;_DEBUG;_WINDOWS;_USRDLL;D3D11WRAPPER_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
@@ -141,7 +141,7 @@
       </PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
-      <PreprocessorDefinitions>CORE_D3D11;WIN32;_DEBUG;_WINDOWS;_USRDLL;D3D11WRAPPER_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>NOMINMAX;WIN32_LEAN_AND_MEAN;CORE_D3D11;WIN32;_DEBUG;_WINDOWS;_USRDLL;D3D11WRAPPER_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
@@ -156,7 +156,7 @@
       </PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
-      <PreprocessorDefinitions>CORE_D3D11;_DEBUG;_WINDOWS;_USRDLL;D3D11WRAPPER_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>NOMINMAX;WIN32_LEAN_AND_MEAN;CORE_D3D11;_DEBUG;_WINDOWS;_USRDLL;D3D11WRAPPER_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
@@ -171,7 +171,7 @@
       </PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
-      <PreprocessorDefinitions>CORE_D3D11;_DEBUG;_WINDOWS;_USRDLL;D3D11WRAPPER_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>NOMINMAX;WIN32_LEAN_AND_MEAN;CORE_D3D11;_DEBUG;_WINDOWS;_USRDLL;D3D11WRAPPER_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <BufferSecurityCheck>false</BufferSecurityCheck>
       <ExceptionHandling>false</ExceptionHandling>
@@ -192,7 +192,7 @@
       <FunctionLevelLinking>
       </FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <PreprocessorDefinitions>CORE_D3D11;WIN32;NDEBUG;_WINDOWS;_USRDLL;D3D11WRAPPER_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>NOMINMAX;WIN32_LEAN_AND_MEAN;CORE_D3D11;WIN32;NDEBUG;_WINDOWS;_USRDLL;D3D11WRAPPER_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
       <EnableFiberSafeOptimizations>true</EnableFiberSafeOptimizations>
@@ -221,7 +221,7 @@
       <FunctionLevelLinking>
       </FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <PreprocessorDefinitions>CORE_D3D11;NDEBUG;_WINDOWS;_USRDLL;D3D11WRAPPER_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>NOMINMAX;WIN32_LEAN_AND_MEAN;CORE_D3D11;NDEBUG;_WINDOWS;_USRDLL;D3D11WRAPPER_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
       <EnableFiberSafeOptimizations>true</EnableFiberSafeOptimizations>
@@ -253,6 +253,8 @@
     <ClInclude Include="..\core\Helpers\Helpers.h" />
     <ClInclude Include="..\core\InputLayout.h" />
     <ClInclude Include="..\core\Interfaces\Serialisable.h" />
+    <ClInclude Include="..\core\Network.h" />
+    <ClInclude Include="..\core\Ringbuffer.h" />
     <ClInclude Include="..\core\Shader.h" />
     <ClInclude Include="..\core\ShaderResources.h" />
     <ClInclude Include="..\core\Texture.h" />
@@ -271,6 +273,8 @@
     <ClCompile Include="..\core\Frame.cpp" />
     <ClCompile Include="..\core\InputLayout.cpp" />
     <ClCompile Include="..\core\Interfaces\Serialisable.cpp" />
+    <ClCompile Include="..\core\Network.cpp" />
+    <ClCompile Include="..\core\Ringbuffer.cpp" />
     <ClCompile Include="..\core\Shader.cpp" />
     <ClCompile Include="..\core\ShaderResources.cpp" />
     <ClCompile Include="..\core\Texture.cpp" />
