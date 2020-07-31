@@ -10,7 +10,7 @@ with open(sys.argv[1], "rb") as f:
 
 datarts = numpy.array(struct.unpack("{}Q".format(len(data) // 8), data))
 
-nEvents = 1
+nEvents = 8
 
 HOST = 'localhost'    # The remote host
 PORT = 6666              # The same port as used by the server

@@ -14,6 +14,14 @@ import socket
 matplotlib.pyplot.rcParams['toolbar'] = 'None'
 #matplotlib.pyplot.tight_layout()
 
+maxY = 200
+maxTDPI = 240
+
+if len(sys.argv) > 1:
+    maxY = int(sys.argv[1])
+
+if len(sys.argv) > 2:
+    maxTDPI = int(sys.argv[2])
 
 
 def rolling_window(a, window):
@@ -33,7 +41,7 @@ iTime = 30
 smoothfactor = 30
 
 resolution = numpy.array((1920, 1080))
-TargetDPI = 240
+TargetDPI = maxTDPI
 
 #size = numpy.array([16,9])
 
@@ -42,18 +50,28 @@ solvedSize = resolution / TargetDPI
 fig = matplotlib.pyplot.figure(dpi=TargetDPI, figsize=solvedSize)#figsize=(lScalar*scaleWidth, min((lScalar * scaleWidth*scaleWidth / 16), max(16, (lScalar * 18 / 16)))))
 ax = matplotlib.pyplot.axes()
 dra, = ax.plot([],[])
-ax.plot([-5,iTime+5], [30,30])
-ax.plot([-5,iTime+5], [60,60])
 
-ax.set_facecolor((0.0, 1.0, 0.0))
-fig.set_facecolor((0.0, 1.0, 0.0))
+# For Green Chromakey Background
+color = (0,1,0)
+ax.plot([-5,iTime+5], [60,60])
+ax.plot([-5,iTime+5], [30,30])
+
+#color = (0,1,1)
+#ax.plot([-5,iTime+5], [30,30])
+#ax.plot([-5,iTime+5], [60,60])
+
+
+
+
+ax.set_facecolor(color)
+fig.set_facecolor(color)
 
 #errorBars, = ax.plot([],[])
 #errorBars, = ax.fill_between(1, 0, 1)
 
 ax.set_xlabel("Time (Seconds)")
 ax.set_ylabel("Frames Per Second")
-ax.set_ylim(top=500, bottom=-1)
+ax.set_ylim(top=maxY, bottom=-1)
 ax.set_xlim(left=-5, right=iTime+5)
 
 
@@ -143,22 +161,24 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
                     dataStdHolder = numpy.std(rolled, axis=-1)
 
                     comp = numpy.convolve(dataHolder, numpy.ones((realWindow,))/realWindow, mode='valid')
-                    
+                    err = dataStdHolder[realWindow-1:realWindow+len(comp)]
+
+                    #RAW
+                    #comp = dataHolder
+                    #err = dataStdHolder
+
+                    # print(len(comp))
+                    # print(dataHolder.shape)
+                    # print(err.shape)
+                    # print(dataHolderRt[:len(comp)].shape)
                     # dra.set_xdata(modRT[:-(smoothfactor-1)] - cumTimePassed)
                     # dra.set_ydata(comp)
 
                     #errorBars.set_xdata(dataHolderRt[:len(comp)])
                     #errorBars.set_ydata(dataStdHolder[:len(comp)])
 
-                    err = dataStdHolder[realWindow-1:realWindow+len(comp)]
-
-                    # print(len(comp))
-                    # print(dataHolder.shape)
-                    # print(err.shape)
-                    # print(dataHolderRt[:len(comp)].shape)
-
                     ax.collections.clear()
-                    ax.fill_between(dataHolderRt[:len(comp)], comp - err, comp + err, facecolor='blue', alpha=0.25)
+                    ax.fill_between(dataHolderRt[:len(comp)], comp - (2 * err), comp + (2 * err), facecolor='blue', alpha=0.25)
 
                     dra.set_xdata(dataHolderRt[:len(comp)])
                     dra.set_ydata(comp)

@@ -122,11 +122,11 @@ bool D3DObjectManager::LoadDLL()
 	if (IsWow64())
 	{
 		Event << LOG("Running on SysWOW64") << std::endl;
-		hD3D = LoadLibrary(L"C:\\Windows\\SysWOW64\\d3d11.dll");
+		hD3D = LoadLibrary(L"C:\\Windows\\SysWOW64\\original_d3d11.dll");
 	}
 	else
 	{
-		hD3D = LoadLibrary(L"C:\\Windows\\System32\\d3d11.dll");
+		hD3D = LoadLibrary(L"C:\\Windows\\System32\\original_d3d11.dll");
 	}
 
 	if (hD3D == NULL)

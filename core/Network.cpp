@@ -34,11 +34,11 @@ void CNetwork::WorkerThread_RT()
 		}
 		else
 		{
-			std::cout << "Called with empty vector" << std::endl;
+			//std::cout << "Called with empty vector" << std::endl;
 		}
 		// Send
 
-		std::this_thread::sleep_for(std::chrono::milliseconds(200));
+		std::this_thread::sleep_for(std::chrono::milliseconds(100));
 	}
 }
 

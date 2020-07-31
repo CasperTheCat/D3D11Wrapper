@@ -2,16 +2,17 @@
 #include <vector>
 #include <cstdint>
 #include <algorithm>
+#include <atomic>
 
 template<class T>
 class CCircularBuffer
 {
 private:
     std::vector<T> m_buffer;
-    volatile size_t m_start;
-    volatile size_t m_end;
-    volatile size_t m_capacity;
-    volatile size_t m_size;
+    std::atomic<size_t> m_start;
+    std::atomic<size_t> m_end;
+    std::atomic<size_t> m_capacity;
+    std::atomic<size_t> m_size;
 
 public:
 
