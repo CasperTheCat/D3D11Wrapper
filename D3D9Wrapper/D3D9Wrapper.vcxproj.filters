@@ -3,11 +3,11 @@
   <ItemGroup>
     <Filter Include="Source Files">
       <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
-      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+      <Extensions>cpp;c;cc;cxx;c++;def;odl;idl;hpj;bat;asm;asmx</Extensions>
     </Filter>
     <Filter Include="Header Files">
       <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
-      <Extensions>h;hh;hpp;hxx;hm;inl;inc;xsd</Extensions>
+      <Extensions>h;hh;hpp;hxx;h++;hm;inl;inc;ipp;xsd</Extensions>
     </Filter>
     <Filter Include="Resource Files">
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
@@ -25,33 +25,82 @@
     <Filter Include="Source Files\Stateful">
       <UniqueIdentifier>{5af593bb-e7c5-4e95-be18-f5879a0ccb76}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\Interfaces">
+      <UniqueIdentifier>{d733f91d-30a8-483d-be96-2122dc15f1b8}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Shared">
-      <UniqueIdentifier>{b067d743-ed46-40e3-90c1-c90557ae3372}</UniqueIdentifier>
+      <UniqueIdentifier>{05d1f7f9-df2d-4dcb-9194-50e6e2aae89e}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <Text Include="ReadMe.txt" />
+    <None Include="d3d9Wrapper.def">
+      <Filter>Source Files</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\core\Call.cpp">
+      <Filter>Source Files\Stateful</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\Buffer.cpp">
+      <Filter>Source Files\Stateful</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\Shader.cpp">
+      <Filter>Source Files\Stateful</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\Frame.cpp">
+      <Filter>Source Files\Stateful</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\Texture.cpp">
+      <Filter>Source Files\Stateful</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\InputLayout.cpp">
+      <Filter>Source Files\Stateful</Filter>
+    </ClCompile>
+    <ClCompile Include="d3d9Functions.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="stdafx.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="d3d9Device.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="d3d9ObjectManager.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="utils.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="interface.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\Interfaces\Serialisable.cpp">
+      <Filter>Source Files\Interfaces</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\ShaderResources.cpp">
+      <Filter>Source Files\Stateful</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\Network.cpp">
+      <Filter>Shared</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\Ringbuffer.cpp">
+      <Filter>Shared</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="stdafx.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="targetver.h">
+    <ClInclude Include="d3d9Device.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="d3d9ObjectManager.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="utils.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="d3d11Device.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="d3d11DeviceContext.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Globals.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\DXGIWrapper\dxgiSwapchain2.h">
+    <ClInclude Include="interface.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\core\Call.h">
@@ -72,9 +121,6 @@
     <ClInclude Include="..\core\Helpers\Helpers.h">
       <Filter>Header Files\Helpers</Filter>
     </ClInclude>
-    <ClInclude Include="d3d11ObjectManager.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="..\core\Buffer.h">
       <Filter>Header Files\Stateful</Filter>
     </ClInclude>
@@ -90,64 +136,5 @@
     <ClInclude Include="..\core\Ringbuffer.h">
       <Filter>Shared</Filter>
     </ClInclude>
-  </ItemGroup>
-  <ItemGroup>
-    <ClCompile Include="stdafx.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="utils.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="d3d11Functions.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="d3d11Device.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="d3d11DeviceContext.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\DXGIWrapper\dxgiSwapchain2.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\core\Call.cpp">
-      <Filter>Source Files\Stateful</Filter>
-    </ClCompile>
-    <ClCompile Include="d3d11ObjectManager.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\core\Buffer.cpp">
-      <Filter>Source Files\Stateful</Filter>
-    </ClCompile>
-    <ClCompile Include="..\core\Shader.cpp">
-      <Filter>Source Files\Stateful</Filter>
-    </ClCompile>
-    <ClCompile Include="..\core\Frame.cpp">
-      <Filter>Source Files\Stateful</Filter>
-    </ClCompile>
-    <ClCompile Include="..\core\ShaderResources.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\core\Texture.cpp">
-      <Filter>Source Files\Stateful</Filter>
-    </ClCompile>
-    <ClCompile Include="..\core\Interfaces\Serialisable.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\core\InputLayout.cpp">
-      <Filter>Source Files\Stateful</Filter>
-    </ClCompile>
-    <ClCompile Include="..\core\Network.cpp">
-      <Filter>Shared</Filter>
-    </ClCompile>
-    <ClCompile Include="..\core\Ringbuffer.cpp">
-      <Filter>Shared</Filter>
-    </ClCompile>
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="d3d11Wrapper.def">
-      <Filter>Source Files</Filter>
-    </None>
-    <None Include="cpp.hint" />
   </ItemGroup>
 </Project>

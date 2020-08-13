@@ -1,20 +1,16 @@
 #pragma once
-#define WIN32_LEAN_AND_MEAN
-#include <d3d11.h>
-#include <d3d11_1.h>
-#include <d3d11_2.h>
-#include <d3d11_3.h>
-#include <d3d11_4.h>
-#include <d3d11on12.h>
+#include <d3d9.h>
 #include <fstream>
 #include <vector>
 #include <unordered_map>
 #include <cstdint>
 #include <mutex>
-#include <chrono>
-#include "../core/Network.h"
 
-// Data
+#include "d3d9Device.h"
+#include <chrono>
+
+
+//// Data
 #include "../core/Frame.h"
 #include "../core/Call.h"
 
@@ -29,6 +25,8 @@
 
 #include <atomic>
 #include <filesystem>
+
+#include "../core/Network.h"
 // Include from our mgmt classes
 // Not needed yet
 
@@ -87,7 +85,6 @@ private:
 	std::unique_ptr<CNetwork> m_pTimingNetwork;
 	bool m_bUsingNetwork;
 
-
 protected:
 	HMODULE hD3D;
 	bool bIsDllValid;
@@ -114,7 +111,8 @@ public:
 	//
 	void Notify_Present();
 
-	void Notify_Draw(UINT IndexCount, UINT StartIndexLocation, INT BaseVertexLocation, ECallsTypes eCallTypes);
+	void Notify_Draw(D3DPRIMITIVETYPE PrimitiveType, INT BaseVertexIndex, UINT MinVertexIndex, UINT NumVertices, UINT startIndex, UINT primCount, ECallsTypes eCallTypes);
+	void Notify_DrawUP(D3DPRIMITIVETYPE PrimitiveType, UINT MinVertexIndex, UINT NumVertices, UINT PrimitiveCount, const void* pIndexData, D3DFORMAT IndexDataFormat, const void* pVertexStreamZeroData, UINT VertexStreamZeroStride);
 	void SetVertexMeta(uint32_t SlotNumber, uint32_t Stride, uint32_t Offset);
 
 	///// ///// ////////// ///// /////
@@ -142,7 +140,7 @@ public:
 	/**
 	 * Buffer
 	 */
-	void AddBuffer(void* pReturnPtr, const void* pData, uint64_t uDataSize, uint32_t uBindType, class D3D11CustomDevice* pOwningDevice);
+	void AddBuffer(void* pReturnPtr, EBufferTypes eType, uint64_t uDataSize, uint32_t uBindType, class D3D9CustomDevice* pOwningDevice);
 	int32_t QueryBuffer(void* pReturnPtr);
 	void SetBuffer(void* pReturnPtr, EBufferTypes eBufferType, uint32_t uSlotIndex);
 	CBuffer* GetBuffer(uint32_t iBufferIndex);
@@ -150,7 +148,7 @@ public:
 	/**
 	 * Textures 
 	 */
-	void AddTexture(void* pReturnPtr, const D3D11_SUBRESOURCE_DATA* pData, FTextureInfo &texInfo, class D3D11CustomDevice* pOwningDevice, bool bIsImmediate);
+	void AddTexture(void* pReturnPtr, const D3D11_SUBRESOURCE_DATA* pData, FTextureInfo &texInfo, class D3D9CustomDevice* pOwningDevice, bool bIsImmediate);
 	int32_t QueryTexture(void* pReturnPtr);
 	CTexture* GetTexture(uint32_t iTexIndex);
 
@@ -165,7 +163,7 @@ public:
 	/**
 	 * InputLayouts
 	 */
-	void AddInputLayout(void* pReturnPtr, const D3D11_INPUT_ELEMENT_DESC* pElements, uint32_t uNumElements);
+	void AddInputLayout(void* pReturnPtr);
 	int32_t QueryInputLayout(void* pReturnPtr);
 	void SetInputLayout(void* pReturnPtr);
 	CInputLayout* GetInputLayout(uint32_t iLayoutIndex);

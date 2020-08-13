@@ -1,7 +1,7 @@
 #include "Buffer.h"
+
+#if defined(CORE_D3D11)
 #include "../D3D11Wrapper/d3d11Device.h"
-
-
 CBuffer::CBuffer(void* pEngine, const void* pData, uint64_t uDataSize, uint32_t uBindFlags, D3D11CustomDevice* pOwningDevice) :
     m_pEnginePointer(pEngine),
     m_pOwner(pOwningDevice),
@@ -32,32 +32,6 @@ CBuffer::~CBuffer()
 {
 }
 
-void CBuffer::Serialise(std::string strFilename)
-{
-    std::ofstream serial(strFilename, std::ios::out | std::ios::binary);
-    serial.write(
-        reinterpret_cast<char*>(m_vHash.data()),
-        m_vHash.size()
-    );
-
-    if (bHasBeenSerialised) { serial.close();  return; }
-
-    serial.write(
-        reinterpret_cast<char*>(&m_uFlags),
-        sizeof(uint32_t)
-    );
-    serial.write(
-        reinterpret_cast<char*>(&m_uStructure),
-        sizeof(uint32_t)
-    );
-    serial.write(
-        reinterpret_cast<char*>(m_vData.data()),
-        m_vData.size()
-    );
-    serial.close();
-
-    bHasBeenSerialised = true;
-}
 
 void CBuffer::Load()
 {
@@ -108,4 +82,86 @@ void CBuffer::Load()
         m_pOwner->RealContext()->Unmap(pResBuffer, 0);
         pResBuffer->Release();
     }
+}
+
+#elif defined(CORE_D3D9)
+#include "../D3D9Wrapper/d3d9Device.h"
+CBuffer::CBuffer(void* pEngine, EBufferTypes eType, uint64_t uDataSize, uint32_t uBindFlags, PD3DCustomDevice pOwningDevice) :
+    m_pEnginePointer(pEngine),
+    m_pOwner(pOwningDevice),
+    m_uFlags(uBindFlags),
+    m_bTransientCapture(true),
+    m_eBufferType(eType)
+{
+    //auto* asBuffer = reinterpret_cast<IDirect3DResource9*>(m_pEnginePointer);
+
+    //D3D11_BUFFER_DESC ofalseDesc{};
+    //asBuffer->GetDesc(&ofalseDesc);
+
+    //m_uStructure = ofalseDesc.StructureByteStride;
+    //m_uMisc = ofalseDesc.MiscFlags;
+}
+
+CBuffer::~CBuffer()
+{
+}
+
+void CBuffer::Load()
+{
+    if (m_bTransientCapture)
+    {
+        switch (m_eBufferType)
+        {
+        case EBufferTypes::Vertex:
+            LoadBuffer<IDirect3DVertexBuffer9, D3DVERTEXBUFFER_DESC>();
+            break;
+        case EBufferTypes::Index:
+            LoadBuffer<IDirect3DIndexBuffer9, D3DINDEXBUFFER_DESC>();
+            break;
+        case EBufferTypes::VertexConstant:
+            break;
+        case EBufferTypes::HullConstant:
+            break;
+        case EBufferTypes::DomainConstant:
+            break;
+        case EBufferTypes::GeometryConstant:
+            break;
+        case EBufferTypes::PixelConstant:
+            break;
+        case EBufferTypes::ComputeConstant:
+            break;
+        case EBufferTypes::TOTAL_SHADER_TYPES:
+            break;
+        default:
+            break;
+        }
+    }
+}
+#endif
+
+void CBuffer::Serialise(std::string strFilename)
+{
+    std::ofstream serial(strFilename, std::ios::out | std::ios::binary);
+    serial.write(
+        reinterpret_cast<char*>(m_vHash.data()),
+        m_vHash.size()
+    );
+
+    if (bHasBeenSerialised) { serial.close();  return; }
+
+    serial.write(
+        reinterpret_cast<char*>(&m_uFlags),
+        sizeof(uint32_t)
+    );
+    serial.write(
+        reinterpret_cast<char*>(&m_uStructure),
+        sizeof(uint32_t)
+    );
+    serial.write(
+        reinterpret_cast<char*>(m_vData.data()),
+        m_vData.size()
+    );
+    serial.close();
+
+    bHasBeenSerialised = true;
 }

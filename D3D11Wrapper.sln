@@ -7,6 +7,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "D3D11Wrapper", "D3D11Wrappe
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "DXGIWrapper", "DXGIWrapper\DXGIWrapper.vcxproj", "{67FF9B38-606E-4551-93CB-3F318F48A7F4}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "D3D9Wrapper", "D3D9Wrapper\D3D9Wrapper.vcxproj", "{20B1E2D8-CA90-40B1-82AD-56C9C3CC6749}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -61,6 +63,26 @@ Global
 		{67FF9B38-606E-4551-93CB-3F318F48A7F4}.Release|x64.Build.0 = Release|x64
 		{67FF9B38-606E-4551-93CB-3F318F48A7F4}.Release|x86.ActiveCfg = Release|Win32
 		{67FF9B38-606E-4551-93CB-3F318F48A7F4}.Release|x86.Build.0 = Release|Win32
+		{20B1E2D8-CA90-40B1-82AD-56C9C3CC6749}.Debug|x64.ActiveCfg = Debug|x64
+		{20B1E2D8-CA90-40B1-82AD-56C9C3CC6749}.Debug|x64.Build.0 = Debug|x64
+		{20B1E2D8-CA90-40B1-82AD-56C9C3CC6749}.Debug|x86.ActiveCfg = Debug|Win32
+		{20B1E2D8-CA90-40B1-82AD-56C9C3CC6749}.Debug|x86.Build.0 = Debug|Win32
+		{20B1E2D8-CA90-40B1-82AD-56C9C3CC6749}.DebugNoStack|x64.ActiveCfg = Debug|x64
+		{20B1E2D8-CA90-40B1-82AD-56C9C3CC6749}.DebugNoStack|x64.Build.0 = Debug|x64
+		{20B1E2D8-CA90-40B1-82AD-56C9C3CC6749}.DebugNoStack|x86.ActiveCfg = Debug|Win32
+		{20B1E2D8-CA90-40B1-82AD-56C9C3CC6749}.DebugNoStack|x86.Build.0 = Debug|Win32
+		{20B1E2D8-CA90-40B1-82AD-56C9C3CC6749}.DLL-Import Debug|x64.ActiveCfg = Debug|x64
+		{20B1E2D8-CA90-40B1-82AD-56C9C3CC6749}.DLL-Import Debug|x64.Build.0 = Debug|x64
+		{20B1E2D8-CA90-40B1-82AD-56C9C3CC6749}.DLL-Import Debug|x86.ActiveCfg = Debug|Win32
+		{20B1E2D8-CA90-40B1-82AD-56C9C3CC6749}.DLL-Import Debug|x86.Build.0 = Debug|Win32
+		{20B1E2D8-CA90-40B1-82AD-56C9C3CC6749}.DLL-Import Release|x64.ActiveCfg = Release|x64
+		{20B1E2D8-CA90-40B1-82AD-56C9C3CC6749}.DLL-Import Release|x64.Build.0 = Release|x64
+		{20B1E2D8-CA90-40B1-82AD-56C9C3CC6749}.DLL-Import Release|x86.ActiveCfg = Release|Win32
+		{20B1E2D8-CA90-40B1-82AD-56C9C3CC6749}.DLL-Import Release|x86.Build.0 = Release|Win32
+		{20B1E2D8-CA90-40B1-82AD-56C9C3CC6749}.Release|x64.ActiveCfg = Release|x64
+		{20B1E2D8-CA90-40B1-82AD-56C9C3CC6749}.Release|x64.Build.0 = Release|x64
+		{20B1E2D8-CA90-40B1-82AD-56C9C3CC6749}.Release|x86.ActiveCfg = Release|Win32
+		{20B1E2D8-CA90-40B1-82AD-56C9C3CC6749}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

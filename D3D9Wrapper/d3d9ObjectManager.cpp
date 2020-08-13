@@ -1,5 +1,5 @@
 #include "stdafx.h"
-#include "d3d11ObjectManager.h"
+#include "d3d9ObjectManager.h"
 #include "utils.h"
 #include <sstream>
 #include <iostream>
@@ -22,10 +22,9 @@ D3DObjectManager::D3DObjectManager()
 	bIsDllValid(false),
 	m_eCaptureState(ECaptureState::Await),
 	m_eWriteState(EWritebackState::Complete),
-	m_uFramenumber(0)
+	m_uFramenumber(0),
+	m_tpLastFrameTime(std::chrono::high_resolution_clock::now())
 {
-	//m_vFrames = std::make_shared<std::vector<CFrame>>();
-
 	AllocConsole();
 	freopen_s((FILE**)stdout, "CONOUT$", "w", stdout);
 
@@ -41,12 +40,12 @@ D3DObjectManager::D3DObjectManager()
 	{
 		std::cout << "Caught Exception" << std::endl;
 		m_bUsingNetwork = false;
-}
+	}
+	
 
 #ifndef NDEBUG
-	Event.open("D3D11.log");
+	Event.open("D3D9.log");
 	DEBUG_LOGLINE(Event, LOG("Initialising"));
-
 
 	std::cout << "DLL initialised" << std::endl;
 
@@ -61,6 +60,8 @@ D3DObjectManager::D3DObjectManager()
 	// Create if not
 	std::filesystem::create_directories(m_fspRoot);
 
+
+
 	m_vFrames.emplace_back();
 }
 
@@ -69,7 +70,7 @@ D3DObjectManager::~D3DObjectManager()
 #ifndef NDEBUG
 	Event.close();
 #endif
-	Timing.close();
+	//Timing.close();
 }
 
 void D3DObjectManager::WriteFrame()
@@ -77,7 +78,7 @@ void D3DObjectManager::WriteFrame()
 	DEBUG_LOGLINE(Event, "[WRTE] Writing");
 
 	// GetFrame
-	for (uint32_t cf = 0; cf < m_vFrames.size(); ++cf)
+	for (uint32_t cf = 0; cf < m_vFrames.size() - 1; ++cf)
 	{
 		auto fPtr = &m_vFrames[cf];
 		std::ostringstream ssFolderPath;
@@ -122,11 +123,11 @@ bool D3DObjectManager::LoadDLL()
 	if (IsWow64())
 	{
 		Event << LOG("Running on SysWOW64") << std::endl;
-		hD3D = LoadLibrary(L"C:\\Windows\\SysWOW64\\original_d3d11.dll");
+		hD3D = LoadLibrary(L"C:\\Windows\\SysWOW64\\d3d9.dll");
 	}
 	else
 	{
-		hD3D = LoadLibrary(L"C:\\Windows\\System32\\original_d3d11.dll");
+		hD3D = LoadLibrary(L"C:\\Windows\\System32\\d3d9.dll");
 	}
 
 	if (hD3D == NULL)
@@ -155,7 +156,7 @@ void D3DObjectManager::Notify_Present()
 	long long uTimeTaken = std::chrono::duration_cast<std::chrono::microseconds>(tpNow - m_tpLastFrameTime).count();
 
 	//DEBUG_ONLY_PRINT();
-	//std::cout << LOG("Frame took " << uTimeTaken << " microseconds") << std::endl;
+	DEBUG_LINE(Event, LOG("Frame took " << uTimeTaken << " microseconds"));
 	m_tpLastFrameTime = tpNow;
 
 	// Ready To Serialise!!!
@@ -163,9 +164,10 @@ void D3DObjectManager::Notify_Present()
 	//Timing.write(reinterpret_cast<char*>(&uTimeTaken), sizeof(long long));
 	if (m_bUsingNetwork)
 	{
+		DEBUG_LINE(Event, LOG("Sending: " << uTimeTaken << " microseconds"));
 		m_pTimingNetwork->SendU64(uTimeTaken);
 	}
-	
+
 
 	switch (m_eCaptureState)
 	{
@@ -179,6 +181,7 @@ void D3DObjectManager::Notify_Present()
 		break;
 	case ECaptureState::Capturing:
 		m_eCaptureState = ECaptureState::Cooldown;
+		m_vFrames.emplace_back();
 		//[[FALLTHROUGH]]
 	case ECaptureState::Cooldown:
 		m_eWriteState = EWritebackState::Queued;
@@ -226,16 +229,47 @@ void D3DObjectManager::Notify_Present()
 	}
 }
 
-void D3DObjectManager::Notify_Draw(UINT IndexCount, UINT StartIndexLocation, INT BaseVertexLocation, ECallsTypes eCallTypes)
+void D3DObjectManager::Notify_Draw(D3DPRIMITIVETYPE PrimitiveType, INT BaseVertexIndex, UINT MinVertexIndex, UINT NumVertices, UINT startIndex, UINT primCount, ECallsTypes eCallTypes)
 {
 	// We don't touch the arrays if no capture is occuring
 	if (m_eCaptureState == ECaptureState::Capturing)
 	{
-		GetCurrentFrame()->GetCurrentCall()->SetInfo(IndexCount, StartIndexLocation, BaseVertexLocation, static_cast<std::underlying_type<ECallsTypes>::type>(eCallTypes));
+		GetCurrentFrame()->GetCurrentCall()->SetInfo(primCount, startIndex, BaseVertexIndex + MinVertexIndex, static_cast<std::underlying_type<ECallsTypes>::type>(eCallTypes), PrimitiveType);
 		GetCurrentFrame()->GetCurrentCall()->Finalise(this);
+
+		DEBUG_LOGLINE(Event, LOG(
+			"PT: " << PrimitiveType << std::endl <<
+			"BVI: " << BaseVertexIndex << std::endl <<
+			"MVI: " << MinVertexIndex << std::endl <<
+			"NV: " << NumVertices << std::endl <<
+			"SI: " << startIndex << std::endl <<
+			"PC: " << primCount << std::endl
+		));
 		
 		DEBUG_LINE(Event, LOG("Finalised draw call: " << GetCurrentFrame()->m_calls.size()));
 		
+		//auto nBuffers = // For BDO
+
+		// Emplace a new call
+		// raw
+		CFrame* curFrame = &m_vFrames[m_vFrames.size() - 1];
+		//m_vFrames.back();
+		//curFrame.m_calls.emplace_back(m_vFrames->size());
+		//curFrame->m_calls.push_back(CCall(m_vFrames.size()));
+		curFrame->m_calls.emplace_back(GetCurrentFrame()->m_calls.back());
+	}
+}
+
+void D3DObjectManager::Notify_DrawUP(D3DPRIMITIVETYPE PrimitiveType, UINT MinVertexIndex, UINT NumVertices, UINT PrimitiveCount, const void* pIndexData, D3DFORMAT IndexDataFormat, const void* pVertexStreamZeroData, UINT VertexStreamZeroStride)
+{
+	// We don't touch the arrays if no capture is occuring
+	if (m_eCaptureState == ECaptureState::Capturing)
+	{
+		//GetCurrentFrame()->GetCurrentCall()->SetInfo(IndexCount, StartIndexLocation, BaseVertexLocation, static_cast<std::underlying_type<ECallsTypes>::type>(eCallTypes));
+		GetCurrentFrame()->GetCurrentCall()->Finalise(this);
+
+		DEBUG_LINE(Event, LOG("Finalised draw call: " << GetCurrentFrame()->m_calls.size()));
+
 		//auto nBuffers = // For BDO
 
 		// Emplace a new call
@@ -436,7 +470,7 @@ void D3DObjectManager::SerialiseShaderBytecode(uint32_t uShaderIndex, std::strin
 	VSDWrite.write(reinterpret_cast<char *>(shader.data()), shader.size());
 }
 
-void D3DObjectManager::AddBuffer(void* pReturnPtr, const void* pData, uint64_t uDataSize, uint32_t uBindType, D3D11CustomDevice* pOwningDevice)
+void D3DObjectManager::AddBuffer(void* pReturnPtr, EBufferTypes eType, uint64_t uDataSize, uint32_t uBindType, D3D9CustomDevice* pOwningDevice)
 {
 	// Sanity
 	if (!pReturnPtr)
@@ -456,7 +490,7 @@ void D3DObjectManager::AddBuffer(void* pReturnPtr, const void* pData, uint64_t u
 		int32_t bufferIndex = static_cast<int32_t>(m_vBuffers.size());
 		m_mBuffers.emplace(pReturnPtr, bufferIndex);
 
-		m_vBuffers.emplace_back(pReturnPtr, pData, uDataSize, uBindType, pOwningDevice);
+		m_vBuffers.emplace_back(pReturnPtr, eType, uDataSize, uBindType, pOwningDevice);
 		//m_vShaders.emplace_back(pReturnPtr, pBytecode, uBytecodeLength);
 		DEBUG_LOGLINE(Event, LOG("Buffer registered to ID: " << bufferIndex));
 	}
@@ -533,7 +567,7 @@ void D3DObjectManager::SetBuffer(void* pReturnPtr, EBufferTypes eBufferType, uin
 	}
 }
 
-void D3DObjectManager::AddTexture(void* pReturnPtr, const D3D11_SUBRESOURCE_DATA* pData, FTextureInfo& texInfo, D3D11CustomDevice* pOwningDevice, bool bIsImmediate)
+void D3DObjectManager::AddTexture(void* pReturnPtr, const D3D11_SUBRESOURCE_DATA* pData, FTextureInfo& texInfo, D3D9CustomDevice* pOwningDevice, bool bIsImmediate)
 {
 	// Sanity
 	if (!pReturnPtr)
@@ -690,7 +724,7 @@ CResourceBacking* D3DObjectManager::GetResourceView(uint32_t iSRVIndex)
 	return &m_vShaderResourceBackings[iSRVIndex];
 }
 
-void D3DObjectManager::AddInputLayout(void* pReturnPtr, const D3D11_INPUT_ELEMENT_DESC* pElements, uint32_t uNumElements)
+void D3DObjectManager::AddInputLayout(void* pReturnPtr)
 {
 	// Sanity
 	if (!pReturnPtr)
@@ -709,7 +743,7 @@ void D3DObjectManager::AddInputLayout(void* pReturnPtr, const D3D11_INPUT_ELEMEN
 		int32_t layoutIndex = static_cast<int32_t>(m_vInputLayouts.size());
 		m_mInputLayouts.emplace(pReturnPtr, layoutIndex);
 
-		m_vInputLayouts.emplace_back(pReturnPtr, pElements, uNumElements);
+		m_vInputLayouts.emplace_back(pReturnPtr);
 		//m_vShaders.emplace_back(pReturnPtr, pBytecode, uBytecodeLength);
 		DEBUG_LOGLINE(Event, LOG("Layout registered to ID: " << layoutIndex));
 

@@ -2,9 +2,12 @@
 
 #include <vector>
 #include <cstdint>
-#include <d3d11.h>
+
 #include "Interfaces/Serialisable.h"
 
+#if defined(CORE_D3D11)
+#include <d3d11.h>
+#endif
 
 struct FInputLayout
 {
@@ -23,7 +26,15 @@ public:
 	void* m_pEnginePointer;
 
 public:
-	CInputLayout(void* pEngine, const D3D11_INPUT_ELEMENT_DESC *pElements, uint32_t uNumElements);
+#if defined(CORE_D3D11)
+	CInputLayout(void* pEngine, const D3D11_INPUT_ELEMENT_DESC* pElements, uint32_t uNumElements);
+#elif defined(CORE_D3D9)
+	CInputLayout(void* pEngine);
+//CBuffer(void* pEngine, const void* pData, uint64_t uDataSize, uint32_t uBindFlags, class D3D9CustomDevice* pOwningDevice);
+#else
+#error Wrong Core
+#endif
+	
 	~CInputLayout();
 
 	virtual void Serialise(std::string strFilename);
